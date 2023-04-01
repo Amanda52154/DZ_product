@@ -1,0 +1,25 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+
+# 忽略所有 .log 文件
+*.log
+*.class
+*.lock
+
+*.jar
+*.war
+*.ear
+*.iml
+*.ipr
+*.iws
+
+
+# 忽略名为 temp 的文件夹
+target/
+.idea/
+
+# 忽略名为 config.php 的文件
+config.php
+
+# 注释以井号 (#) 开头
