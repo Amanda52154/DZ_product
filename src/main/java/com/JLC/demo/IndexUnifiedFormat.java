@@ -19,7 +19,7 @@ import static org.apache.spark.sql.functions.*;
  * 2023-03-2023/3/30   14:27
  *
  * @author : zhangmingyue
- * @description :
+ * @description : Process index unified
  * @date : 2023/3/30 2:27 PM
  */
 public class IndexUnifiedFormat {
