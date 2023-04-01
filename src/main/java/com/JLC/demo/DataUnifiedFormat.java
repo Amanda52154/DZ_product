@@ -17,7 +17,7 @@ import java.util.Properties;
  * 2023-03-2023/3/30   14:28
  *
  * @author : zhangmingyue
- * @description :
+ * @description : Process data unified
  * @date : 2023/3/30 2:28 PM
  */
 public class DataUnifiedFormat {
@@ -55,8 +55,8 @@ public class DataUnifiedFormat {
         Dataset<Row> dataDF = sparkSession.sql(dataChange);
 
         if (dataDF != null) {
-//            dataDF.show();
-            writeToTiDB(dataDF, tidbUrl, tidbUser, tidbPassword, sinkTable);
+            dataDF.show();
+//            writeToTiDB(dataDF, tidbUrl, tidbUser, tidbPassword, sinkTable);
         }
         sparkSession.stop();
     }
