@@ -53,7 +53,7 @@ public class PriceRiseFallProcess {
 
         //      Process Price_rise_table data
         Dataset<Row> price_riseDF = sparkSession.sql(getSql());
-        //        price_riseDF.show();
+        price_riseDF.show();
         writeToTiDB(price_riseDF, tidbUrl_product, tidbUser, tidbPassword, priceRiseFallTable);
 
         sparkSession.stop();
@@ -74,11 +74,10 @@ public class PriceRiseFallProcess {
     //  Get tmpView function
     private static void getTmpView(SparkSession sparkSession) {
         //  Get attr column
-        String getContentSql = "select distinct IndicatorCode, content from index";
-        Dataset<Row> contentData = sparkSession.sql(getContentSql);
-
         String jsonSchema = "struct<product:struct<attrName:string>,BelongsArea:struct<attrName:string>,measure:struct<attrName:string>,upd_freq:struct<attrName:string>,caliber:struct<attrName:string>>";
 
+        /*String getContentSql = "select distinct IndicatorCode, content from index";
+        Dataset<Row> contentData = sparkSession.sql(getContentSql);
         Dataset<Row> parsedData = contentData.selectExpr("IndicatorCode", "from_json(content, '" + jsonSchema + "') as parsedContent");
         parsedData.selectExpr("IndicatorCode", "parsedContent.product.attrName as product", "parsedContent.BelongsArea.attrName as BelongsArea", "parsedContent.measure.attrName as measure", "parsedContent.upd_freq.attrName as upd_freq", "parsedContent.caliber.attrName as caliber").createOrReplaceTempView("tmp");
 
@@ -112,20 +111,70 @@ public class PriceRiseFallProcess {
                 "         ) AS tmp1\n" +
                 "             LEFT JOIN data ON tmp1.IndicatorCode = data.IndicatorCode";
         sparkSession.sql(ranke_tabel).createOrReplaceTempView("ranke_Table");
-//            sparkSession.sql(ranke_tabel).show();
+//            sparkSession.sql(ranke_tabel).show();*/
+
+        String rankTableSql = "WITH parsed_content AS (" +
+                "SELECT IndicatorCode, " +
+                "       from_json(content, '" + jsonSchema + "') AS parsedContent " +
+                "FROM index" +
+                "), " +
+                "tmp AS (" +
+                "SELECT IndicatorCode, " +
+                "       parsedContent.product.attrName AS product, " +
+                "       parsedContent.BelongsArea.attrName AS BelongsArea, " +
+                "       parsedContent.measure.attrName AS measure, " +
+                "       parsedContent.upd_freq.attrName AS upd_freq, " +
+                "       parsedContent.caliber.attrName AS caliber " +
+                "FROM parsed_content " +
+                "), " +
+                "filtered_index AS (" +
+                "SELECT index.IndicatorCode, " +
+                "       index.IndicatorName, " +
+                "       index.endDate, " +
+                "       index.upd_freq, " +
+                "       index.unified, " +
+                "       tmp.product, " +
+                "       tmp.BelongsArea, " +
+                "       tmp.measure, " +
+                "       tmp.caliber " +
+                "FROM index " +
+                "JOIN tmp ON index.IndicatorCode = tmp.IndicatorCode " +
+                "WHERE product = '大豆' " +
+                "  AND index.IndicatorCode in (select treeID from tree where PID in (select treeID from tree where NodeName = '国内市场价格')) " +
+                "), " +
+                "rank_Table AS (" +
+                "SELECT tmp1.IndicatorCode, " +
+                "       tmp1.IndicatorName, " +
+                "       tmp1.endDate, " +
+                "       tmp1.upd_freq, " +
+                "       tmp1.unified, " +
+                "       tmp1.product, " +
+                "       tmp1.BelongsArea, " +
+                "       tmp1.measure, " +
+                "       tmp1.caliber, " +
+                "       data.pubDate, " +
+                "       data.measureName, " +
+                "       data.measureValue, " +
+                "       ROW_NUMBER() OVER (PARTITION BY tmp1.IndicatorCode ORDER BY data.pubDate DESC) AS row_num " +
+                "FROM filtered_index tmp1 " +
+                "JOIN data ON tmp1.IndicatorCode = data.IndicatorCode " +
+                ")" +
+                "SELECT * FROM rank_Table";
+        sparkSession.sql(rankTableSql).createOrReplaceTempView("rank_Table");
+//        sparkSession.sql(rankTableSql).show();
     }
 
     //  Return SQL query statement
     private static String getSql() {
         return "WITH latest_dates AS (\n" +
                 "    SELECT IndicatorCode, pubDate as latest_date\n" +
-                "    FROM ranke_table\n" +
+                "    FROM rank_Table\n" +
                 "    where row_num = 1\n" +
                 "),\n" +
                 "     previous_year_dates AS (\n" +
                 "         SELECT t1.IndicatorCode,\n" +
                 "                t1.pubDate as previous_year_date\n" +
-                "         FROM ranke_table t1\n" +
+                "         FROM rank_Table t1\n" +
                 "                  INNER JOIN latest_dates t2\n" +
                 "                             ON t1.IndicatorCode = t2.IndicatorCode\n" +
                 "         WHERE t1.pubDate = date_add(t2.latest_date, -365)),\n" +
@@ -133,7 +182,7 @@ public class PriceRiseFallProcess {
                 "         SELECT t1.IndicatorCode,\n" +
                 "                t1.measureValue as latest_measure_value,\n" +
                 "                t1.pubDate\n" +
-                "         FROM ranke_table t1\n" +
+                "         FROM rank_Table t1\n" +
                 "                  INNER JOIN latest_dates t2\n" +
                 "                             ON t1.IndicatorCode = t2.IndicatorCode AND t1.pubDate = t2.latest_date\n" +
                 "     ),\n" +
@@ -141,7 +190,7 @@ public class PriceRiseFallProcess {
                 "         SELECT t1.IndicatorCode,\n" +
                 "                t1.measureValue as previous_year_measure_value,\n" +
                 "                t1.pubDate\n" +
-                "         FROM ranke_table t1\n" +
+                "         FROM rank_Table t1\n" +
                 "                  INNER JOIN previous_year_dates t3\n" +
                 "                             ON t1.IndicatorCode = t3.IndicatorCode AND t1.pubDate = t3.previous_year_date\n" +
                 "     ),\n" +
@@ -166,7 +215,7 @@ public class PriceRiseFallProcess {
                 "                                unified                                         as unit\n" +
                 "                         from (select IndicatorCode,IndicatorName,unified,BelongsArea,measure,measureValue,pubDate,product,row_num,\n" +
                 "                           LEAD(measureValue) OVER (PARTITION BY IndicatorCode ORDER BY pubDate desc) AS previous_price\n" +
-                "                               from ranke_table\n" +
+                "                               from rank_Table\n" +
                 "                               WHERE measureValue is not null\n" +
                 "                                 and row_num <= 2) tmp1\n" +
                 "                         where row_num = 1)\n" +

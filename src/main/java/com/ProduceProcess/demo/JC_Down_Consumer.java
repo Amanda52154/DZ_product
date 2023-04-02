@@ -71,12 +71,11 @@ public class JC_Down_Consumer {
     }
     //  Get tmpView function
     private static void getTmpView(SparkSession sparkSession) {
-        String getContentSql = "select distinct IndicatorCode, content from index";
-        Dataset<Row> contentData = sparkSession.sql(getContentSql);
-
         String jsonSchema = "struct<product:struct<attrName:string>,BelongsArea:struct<attrName:string>,measure:struct<attrName:string>,upd_freq:struct<attrName:string>,caliber:struct<attrName:string>>";
 
-          Dataset<Row> parsedData = contentData.selectExpr("IndicatorCode", "from_json(content, '" + jsonSchema + "') as parsedContent");
+        /*String getContentSql = "select distinct IndicatorCode, content from index";
+        Dataset<Row> contentData = sparkSession.sql(getContentSql);
+        Dataset<Row> parsedData = contentData.selectExpr("IndicatorCode", "from_json(content, '" + jsonSchema + "') as parsedContent");
         parsedData.selectExpr("IndicatorCode", "parsedContent.product.attrName as product", "parsedContent.BelongsArea.attrName as BelongsArea", "parsedContent.measure.attrName as measure", "parsedContent.upd_freq.attrName as upd_freq", "parsedContent.caliber.attrName as caliber").createOrReplaceTempView("tmp");
 
         String ranke_tabel = "SELECT tmp1.IndicatorCode,\n" +
@@ -108,9 +107,8 @@ public class JC_Down_Consumer {
                 "               AND index.IndicatorCode in (select treeID from tree where PID ='620361dae4b08f1971b3fb12')\n" +
                 "         ) AS tmp1\n" +
                 "             LEFT JOIN data ON tmp1.IndicatorCode = data.IndicatorCode";
-//        sparkSession.sql(ranke_tabel).createOrReplaceTempView("ranke_Table");
-//            sparkSession.sql(ranke_tabel).show();
-//        String jsonSchema = "struct<product:struct<attrName:string>,BelongsArea:struct<attrName:string>,measure:struct<attrName:string>,upd_freq:struct<attrName:string>,caliber:struct<attrName:string>>";
+        sparkSession.sql(ranke_tabel).createOrReplaceTempView("ranke_Table");
+            sparkSession.sql(ranke_tabel).show();*/
 
         String rankTableSql = "WITH parsed_content AS (" +
                 "SELECT IndicatorCode, " +

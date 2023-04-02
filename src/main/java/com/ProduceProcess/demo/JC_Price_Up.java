@@ -70,11 +70,9 @@ public class JC_Price_Up {
     //  Get tmpView function
     private static void getTmpView(SparkSession sparkSession) {
         //  Get attr column
-/*        String getContentSql = "select distinct IndicatorCode, content from index";
-        Dataset<Row> contentData = sparkSession.sql(getContentSql);*/
-
         String jsonSchema = "struct<product:struct<attrName:string>,BelongsArea:struct<attrName:string>,measure:struct<attrName:string>,upd_freq:struct<attrName:string>,caliber:struct<attrName:string>>";
-
+        /*  String getContentSql = "select distinct IndicatorCode, content from index";
+        Dataset<Row> contentData = sparkSession.sql(getContentSql);*/
         /*Dataset<Row> parsedData = contentData.selectExpr("IndicatorCode", "from_json(content, '" + jsonSchema + "') as parsedContent");
         parsedData.selectExpr("IndicatorCode", "parsedContent.product.attrName as product", "parsedContent.BelongsArea.attrName as BelongsArea", "parsedContent.measure.attrName as measure", "parsedContent.upd_freq.attrName as upd_freq", "parsedContent.caliber.attrName as caliber").createOrReplaceTempView("tmp");
 
