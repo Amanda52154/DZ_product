@@ -109,22 +109,21 @@ public class PriceUpDownProcess {
                     "         ) AS tmp1\n" +
                     "             LEFT JOIN data ON tmp1.IndicatorCode = data.IndicatorCode";
             sparkSession.sql(ranke_tabel).createOrReplaceTempView("ranke_Table");
-//            sparkSession.sql(ranke_tabel).show();
+            sparkSession.sql(ranke_tabel).show();
 
         }
     //  Return SQL query statement
     private static String getSql(){
-        return "with tmp1 as (select IndicatorCode,IndicatorName,unified,BelongsArea,measure,pubDate,product,row_num,\n" +
-                "             MAX(measureValue) OVER (PARTITION BY IndicatorCode) AS price,\n" +
-                "             MIN(measureValue) OVER (PARTITION BY IndicatorCode) AS previous_price\n" +
+        return "with tmp1 as (select IndicatorCode,IndicatorName,unified,BelongsArea,measure,measureValue,pubDate,product,row_num,\n" +
+                "              LEAD(measureValue) OVER (PARTITION BY IndicatorCode ORDER BY pubDate desc) AS previous_price\n" +
                 "      from ranke_table\n" +
                 "      WHERE row_num <= 2\n" +
                 ")select IndicatorCode                                   as indicator_code,\n" +
                 "       IndicatorName                                   as indicator_name,\n" +
-                "       price                                           as price,\n" +
+                "       measureValue                                           as price,\n" +
                 "       previous_price                                  as previous_price,\n" +
-                "       (price - previous_price)                        as rise_fall,\n" +
-                "       (price - previous_price) / COALESCE(NULLIF(previous_price, 0), 1) * 100 as percentage,\n" +
+                "       (measureValue - previous_price)                        as rise_fall,\n" +
+                "       (measureValue - previous_price) / COALESCE(NULLIF(previous_price, 0), 1) * 100 as percentage,\n" +
                 "       pubDate                                         as to_date,\n" +
                 "       unified                                         as unit,\n" +
                 "       product                                         as product\n" +

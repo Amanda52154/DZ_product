@@ -53,13 +53,13 @@ public class PriceRiseFallProcess {
 
         //      Process Price_rise_table data
         Dataset<Row> price_riseDF = sparkSession.sql(getSql());
-        price_riseDF.show();
-//        writeToTiDB(price_riseDF, tidbUrl_product, tidbUser, tidbPassword, priceRiseFallTable);
+        //        price_riseDF.show();
+        writeToTiDB(price_riseDF, tidbUrl_product, tidbUser, tidbPassword, priceRiseFallTable);
 
         sparkSession.stop();
     }
 
-    //      Get tableView function
+    //   Get tableView function
     private static Dataset<Row> getDF(SparkSession sparkSession, String url, String user, String password, String table) {
         return sparkSession.read()
                 .format("jdbc")
@@ -108,14 +108,15 @@ public class PriceRiseFallProcess {
                 "             FROM index\n" +
                 "                      LEFT JOIN tmp ON index.IndicatorCode = tmp.IndicatorCode\n" +
                 "             WHERE product = '大豆'\n" +
-                "               AND index.IndicatorCode in (select treeID from tree where PID =(select treeID from tree where NodeName = '国内市场价格'))\n" +
+                "               AND index.IndicatorCode in (select treeID from tree where PID in(select treeID from tree where NodeName = '国内市场价格'))\n" +
                 "         ) AS tmp1\n" +
                 "             LEFT JOIN data ON tmp1.IndicatorCode = data.IndicatorCode";
         sparkSession.sql(ranke_tabel).createOrReplaceTempView("ranke_Table");
 //            sparkSession.sql(ranke_tabel).show();
     }
+
     //  Return SQL query statement
-    private static String getSql(){
+    private static String getSql() {
         return "WITH latest_dates AS (\n" +
                 "    SELECT IndicatorCode, pubDate as latest_date\n" +
                 "    FROM ranke_table\n" +
@@ -157,15 +158,14 @@ public class PriceRiseFallProcess {
                 "                                IndicatorCode                                   as indicator_code,\n" +
                 "                                IndicatorName                                   as indicator_name,\n" +
                 "                                BelongsArea                                     as address,\n" +
-                "                                price                                           as price,\n" +
+                "                                measureValue                                    as price,\n" +
                 "                                previous_price                                  as previous_price,\n" +
-                "                                (price - previous_price)                        as rise_fall,\n" +
-                "                                (price - previous_price) / COALESCE(NULLIF(previous_price, 0), 1) * 100 as percentage,\n" +
+                "                                (measureValue - previous_price)                        as rise_fall,\n" +
+                "                                (measureValue - previous_price) / COALESCE(NULLIF(previous_price, 0), 1) * 100 as percentage,\n" +
                 "                                pubDate                                         as `to_date`,\n" +
                 "                                unified                                         as unit\n" +
-                "                         from (select IndicatorCode,IndicatorName,unified,BelongsArea,measure,pubDate,product,row_num,\n" +
-                "                                      MAX(measureValue) OVER (PARTITION BY IndicatorCode) AS price,\n" +
-                "                                      MIN(measureValue) OVER (PARTITION BY IndicatorCode) AS previous_price\n" +
+                "                         from (select IndicatorCode,IndicatorName,unified,BelongsArea,measure,measureValue,pubDate,product,row_num,\n" +
+                "                           LEAD(measureValue) OVER (PARTITION BY IndicatorCode ORDER BY pubDate desc) AS previous_price\n" +
                 "                               from ranke_table\n" +
                 "                               WHERE measureValue is not null\n" +
                 "                                 and row_num <= 2) tmp1\n" +
@@ -187,6 +187,7 @@ public class PriceRiseFallProcess {
                 "         left join yoy_tabel yt\n" +
                 "                   on rft.indicator_code = yt.IndicatorCode";
     }
+
     //  write to Tidb
     private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password, String table) {
         dataFrame.repartition(10).write()

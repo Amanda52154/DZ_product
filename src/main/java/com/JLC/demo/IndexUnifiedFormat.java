@@ -65,7 +65,7 @@ public class IndexUnifiedFormat {
                 "         left join Unit u on i.id = u.id";
         Dataset<Row> indexDF = sparkSession.sql(getTmptable);
         if (indexDF != null) {
-            indexDF.show();
+//            indexDF.show();
             writeToTiDB(indexDF, tidbUrl, tidbUser, tidbPassword, sinkTable);
         }
         sparkSession.stop();
@@ -102,7 +102,7 @@ public class IndexUnifiedFormat {
                 .select(col("ID"), explode(col("attrArray")).as("attr"))
                 .select(col("ID"), col("attr.attrField"), col("attr.attrName"));
         // Check whether the attrField column contains' Unit', to assign the value of the attrName column to the new unified column
-        Dataset<Row> unifiedDf = explodedDf.withColumn("unified", when(col("attrField").contains("unit"), col("attrName")).otherwise(null));
+        Dataset<Row> unifiedDf = explodedDf.withColumn("unified", when(lower(col("attrField")).contains("unit"), col("attrName")).otherwise(null));
         // Merge data so that there is only one row per ID // Create tmp view
         unifiedDf.groupBy("ID").agg(first("unified", true).as("unified")).createOrReplaceTempView("Unit");
     }

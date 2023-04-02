@@ -20,7 +20,7 @@ import java.util.Properties;
  * @description : Process Price_up_down table for jiachun
  * @date : 2023/3/31 4:30 PM
  */
-public class Test_JC_up {
+public class JC_Price_Up {
     public static void main(String[] args) throws IOException {
         Logger.getLogger("org").setLevel(Level.ERROR);
         Logger logger = Logger.getLogger("SpzsIndex");
@@ -37,7 +37,7 @@ public class Test_JC_up {
 
         String indexTable = "st_spzs_index";
         String dataTable = "st_spzs_data";
-        String treeTable = "st_jlc_tree_copy";
+        String treeTable = "st_spzs_tree";
         String priceUpDownTable = "price_up_down";
 
         SparkSession sparkSession = SparkSession.builder()
@@ -52,7 +52,7 @@ public class Test_JC_up {
         //      Process Price_up_table data
         Dataset<Row> price_upDF = sparkSession.sql(getSql());
         price_upDF.show();
-//        writeToTiDB(price_upDF, tidbUrl_product, tidbUser, tidbPassword, priceUpDownTable);
+        writeToTiDB(price_upDF, tidbUrl_product, tidbUser, tidbPassword, priceUpDownTable);
         sparkSession.stop();
     }
 
@@ -70,12 +70,12 @@ public class Test_JC_up {
     //  Get tmpView function
     private static void getTmpView(SparkSession sparkSession) {
         //  Get attr column
-        String getContentSql = "select distinct IndicatorCode, content from index";
-        Dataset<Row> contentData = sparkSession.sql(getContentSql);
+/*        String getContentSql = "select distinct IndicatorCode, content from index";
+        Dataset<Row> contentData = sparkSession.sql(getContentSql);*/
 
         String jsonSchema = "struct<product:struct<attrName:string>,BelongsArea:struct<attrName:string>,measure:struct<attrName:string>,upd_freq:struct<attrName:string>,caliber:struct<attrName:string>>";
 
-        Dataset<Row> parsedData = contentData.selectExpr("IndicatorCode", "from_json(content, '" + jsonSchema + "') as parsedContent");
+        /*Dataset<Row> parsedData = contentData.selectExpr("IndicatorCode", "from_json(content, '" + jsonSchema + "') as parsedContent");
         parsedData.selectExpr("IndicatorCode", "parsedContent.product.attrName as product", "parsedContent.BelongsArea.attrName as BelongsArea", "parsedContent.measure.attrName as measure", "parsedContent.upd_freq.attrName as upd_freq", "parsedContent.caliber.attrName as caliber").createOrReplaceTempView("tmp");
 
         String ranke_tabel = "SELECT tmp1.IndicatorCode,\n" +
@@ -108,22 +108,69 @@ public class Test_JC_up {
                 "         ) AS tmp1\n" +
                 "             LEFT JOIN data ON tmp1.IndicatorCode = data.IndicatorCode";
         sparkSession.sql(ranke_tabel).createOrReplaceTempView("ranke_Table");
-//            sparkSession.sql(ranke_tabel).show();
+//            sparkSession.sql(ranke_tabel).show();*/
+        String rankTableSql = "WITH parsed_content AS (" +
+                "SELECT IndicatorCode, " +
+                "       from_json(content, '" + jsonSchema + "') AS parsedContent " +
+                "FROM index" +
+                "), " +
+                "tmp AS (" +
+                "SELECT IndicatorCode, " +
+                "       parsedContent.product.attrName AS product, " +
+                "       parsedContent.BelongsArea.attrName AS BelongsArea, " +
+                "       parsedContent.measure.attrName AS measure, " +
+                "       parsedContent.upd_freq.attrName AS upd_freq, " +
+                "       parsedContent.caliber.attrName AS caliber " +
+                "FROM parsed_content " +
+                "), " +
+                "filtered_index AS (" +
+                "SELECT index.IndicatorCode, " +
+                "       index.IndicatorName, " +
+                "       index.endDate, " +
+                "       index.upd_freq, " +
+                "       index.unified, " +
+                "       tmp.product, " +
+                "       tmp.BelongsArea, " +
+                "       tmp.measure, " +
+                "       tmp.caliber " +
+                "FROM index " +
+                "JOIN tmp ON index.IndicatorCode = tmp.IndicatorCode " +
+                "WHERE product = '甲醇' " +
+                "  AND index.IndicatorCode = '57c8f3cce80c19cd2f334c88'), " +
+                "rank_Table AS (" +
+                "SELECT tmp1.IndicatorCode, " +
+                "       tmp1.IndicatorName, " +
+                "       tmp1.endDate, " +
+                "       tmp1.upd_freq, " +
+                "       tmp1.unified, " +
+                "       tmp1.product, " +
+                "       tmp1.BelongsArea, " +
+                "       tmp1.measure, " +
+                "       tmp1.caliber, " +
+                "       data.pubDate, " +
+                "       data.measureName, " +
+                "       data.measureValue, " +
+                "       ROW_NUMBER() OVER (PARTITION BY tmp1.IndicatorCode ORDER BY data.pubDate DESC) AS row_num " +
+                "FROM filtered_index tmp1 " +
+                "JOIN data ON tmp1.IndicatorCode = data.IndicatorCode " +
+                ")" +
+                "SELECT * FROM rank_Table";
+        sparkSession.sql(rankTableSql).createOrReplaceTempView("rank_Table");
+//        sparkSession.sql(rankTableSql).show();
 
     }
     //  Return SQL query statement
     private static String getSql(){
-        return "with tmp1 as (select IndicatorCode,IndicatorName,unified,BelongsArea,measure,pubDate,product,row_num,\n" +
-                "             MAX(measureValue) OVER (PARTITION BY IndicatorCode) AS price,\n" +
-                "             MIN(measureValue) OVER (PARTITION BY IndicatorCode) AS previous_price\n" +
-                "      from ranke_table\n" +
+        return "with tmp1 as (select IndicatorCode,IndicatorName,unified,BelongsArea,measure,measureValue,pubDate,product,row_num,\n" +
+                "              LEAD(measureValue) OVER (PARTITION BY IndicatorCode ORDER BY pubDate desc) AS previous_price\n" +
+                "      from rank_Table\n" +
                 "      WHERE  row_num <= 2\n" +
                 ")select IndicatorCode                                   as indicator_code,\n" +
                 "       IndicatorName                                   as indicator_name,\n" +
-                "       price                                           as price,\n" +
+                "       measureValue                                           as price,\n" +
                 "       previous_price                                  as previous_price,\n" +
-                "       (price - previous_price)                        as rise_fall,\n" +
-                "       (price - previous_price) / COALESCE(NULLIF(previous_price, 0), 1) * 100 as percentage,\n" +
+                "       (measureValue - previous_price)                        as rise_fall,\n" +
+                "       (measureValue - previous_price) / COALESCE(NULLIF(previous_price, 0), 1) * 100 as percentage,\n" +
                 "       pubDate                                         as to_date,\n" +
                 "       unified                                         as unit,\n" +
                 "       product                                         as product\n" +
