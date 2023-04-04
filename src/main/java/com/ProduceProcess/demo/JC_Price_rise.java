@@ -17,7 +17,7 @@ import java.util.Properties;
  * 2023-03-2023/3/31   16:30
  *
  * @author : zhangmingyue
- * @description : Process Price_rise_fall table for jiachun
+ * @description : Process Price_rise_fall table
  * @date : 2023/3/31 4:30 PM
  */
 public class JC_Price_rise {
@@ -43,7 +43,7 @@ public class JC_Price_rise {
 
         SparkSession sparkSession = SparkSession.builder()
                 .appName("JLCDataUnifiedFormat")
-                .master("local[*]")
+//                .master("local[*]")
                 .config("spark.driver.memory", "4g")
                 .config("spark.executor.memory", "8g")
                 .config("spark.executor.extraJavaOptions", "-XX:+UseG1GC")
@@ -55,8 +55,8 @@ public class JC_Price_rise {
         getTmpView(sparkSession);
 
         Dataset<Row> price_riseDF = sparkSession.sql(getSql());
-        price_riseDF.show();
-//        writeToTiDB(price_riseDF, tidbUrl_product, tidbUser, tidbPassword, priceRiseFallTable);
+//        price_riseDF.show();
+        writeToTiDB(price_riseDF, tidbUrl_product, tidbUser, tidbPassword, priceRiseFallTable);
         sparkSession.stop();
     }
 
@@ -84,7 +84,7 @@ public class JC_Price_rise {
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
                /*"where IndicatorCode in (select b.treeID from(select treeid from tree where treeID = '58256e0ce80c2431e8e5a107') a join tree b on b.pathId like concat('%',a.treeid, '%'))"+//线螺:58256e0ce80c2431e8e5a107 //甲醇:57c8f3cce80c19cd2f334c82 //大豆:100000003*/
-                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('58256e0ce80c2431e8e5a107','57c8f3cce80c19cd2f334c82', '100000003')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
+                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('58256e0ce80c2431e8e5a107','57c8f3cce80c19cd2f334c82', 'DD100000003DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
                 "),\n" +
                 "tmp AS (\n" +
                 "    SELECT IndicatorCode,\n" +

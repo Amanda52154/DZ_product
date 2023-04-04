@@ -17,7 +17,7 @@ import java.util.Properties;
  * 2023-03-2023/3/31   16:30
  *
  * @author : zhangmingyue
- * @description : Process Price_up_down table for jiachun
+ * @description : Process Price_up_down table
  * @date : 2023/3/31 4:30 PM
  */
 public class JC_Price_Up {
@@ -42,7 +42,9 @@ public class JC_Price_Up {
 
         SparkSession sparkSession = SparkSession.builder()
                 .appName("JLCDataUnifiedFormat")
-                .master("local[*]")
+//                .master("local[*]")
+                .config("spark.driver.memory", "4g")
+                .config("spark.executor.memory", "4g")
                 .getOrCreate();
         //      get tmpView
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
@@ -77,7 +79,7 @@ public class JC_Price_Up {
                 "           unified,\n" +
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
-                "where IndicatorCode in ('58257969e80c2431e8e5d3da','57c8f3cce80c19cd2f334c88','1340163828')\n" +
+                "where IndicatorCode in ('58257969e80c2431e8e5d3da','57c8f3cce80c19cd2f334c88','DD1340163828DD')\n" +
 //                "where IndicatorCode ='58257969e80c2431e8e5d3da'\n" +//线螺
 //                "where IndicatorCode ='1340163828'\n" +//大豆
 //                "where IndicatorCode ='57c8f3cce80c19cd2f334c88'\n" +//甲醇

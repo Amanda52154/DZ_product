@@ -42,7 +42,7 @@ public class JC_Down_Consumer {
 
         SparkSession sparkSession = SparkSession.builder()
                 .appName("JLCDataUnifiedFormat")
-                .master("local[*]")
+//                .master("local[*]")
                 .config("spark.driver.memory", "4g")
                 .config("spark.executor.memory", "4g")
                 .getOrCreate();
@@ -52,8 +52,8 @@ public class JC_Down_Consumer {
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
         //      Process Price_up_table data
         Dataset<Row> price_upDF = sparkSession.sql(getSql());
-        price_upDF.show();
-//        writeToTiDB(price_upDF, tidbUrl_product, tidbUser, tidbPassword, downConsumerTable);
+//        price_upDF.show();
+        writeToTiDB(price_upDF, tidbUrl_product, tidbUser, tidbPassword, downConsumerTable);
         sparkSession.stop();
     }
 
