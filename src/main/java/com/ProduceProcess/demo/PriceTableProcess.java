@@ -56,7 +56,7 @@ public class PriceTableProcess {
 
         Dataset<Row> priceDF = sparkSession.sql(getSql());
         priceDF.show();
-        writeToTiDB(priceDF, tidbUrl_product, tidbUser, tidbPassword, priceTable);
+//        writeToTiDB(priceDF, tidbUrl_product, tidbUser, tidbPassword, priceTable);
 
         sparkSession.stop();
     }

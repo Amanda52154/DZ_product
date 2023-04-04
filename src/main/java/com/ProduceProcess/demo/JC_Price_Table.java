@@ -52,11 +52,10 @@ public class JC_Price_Table {
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, dataTable).createOrReplaceTempView("data");
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
-        getTmpView(sparkSession);
 
         Dataset<Row> priceDF = sparkSession.sql(getSql());
-//        priceDF.show();
-        writeToTiDB(priceDF, tidbUrl_product, tidbUser, tidbPassword, priceTable);
+        priceDF.show();
+//        writeToTiDB(priceDF, tidbUrl_product, tidbUser, tidbPassword, priceTable);
 
         sparkSession.stop();
     }
@@ -73,70 +72,54 @@ public class JC_Price_Table {
                 .load().toDF();
     }
 
-    //  Get tmpView function
-    private static void getTmpView(SparkSession sparkSession) {
-        //  Get attr column
-
-        String jsonSchema = "struct<product:struct<attrName:string>,BelongsArea:struct<attrName:string>,measure:struct<attrName:string>,upd_freq:struct<attrName:string>,caliber:struct<attrName:string>>";
-
-        String rankTableSql = "WITH parsed_content AS (" +
-                "SELECT IndicatorCode, " +
-                "       from_json(content, '" + jsonSchema + "') AS parsedContent " +
-                "FROM index" +
-                "), " +
-                "tmp AS (" +
-                "SELECT IndicatorCode, " +
-                "       parsedContent.product.attrName AS product, " +
-                "       parsedContent.BelongsArea.attrName AS BelongsArea, " +
-                "       parsedContent.measure.attrName AS measure, " +
-                "       parsedContent.upd_freq.attrName AS upd_freq, " +
-                "       parsedContent.caliber.attrName AS caliber " +
-                "FROM parsed_content " +
-                "), " +
-                "filtered_index AS (" +
-                "SELECT index.IndicatorCode, " +
-                "       index.IndicatorName, " +
-                "       index.endDate, " +
-                "       index.upd_freq, " +
-                "       index.unified, " +
-                "       tmp.product, " +
-                "       tmp.BelongsArea, " +
-                "       tmp.measure, " +
-                "       tmp.caliber " +
-                "FROM index " +
-                "JOIN tmp ON index.IndicatorCode = tmp.IndicatorCode " +
-                "WHERE product = '甲醇' " +
-                "  AND index.IndicatorCode in (SELECT treeID FROM tree WHERE PID in (SELECT treeID FROM tree WHERE PID in(SELECT treeID FROM tree WHERE NodeName = '价格'))) " +
-                "), " +
-                "rank_Table AS (" +
-                "SELECT tmp1.IndicatorCode, " +
-                "       tmp1.IndicatorName, " +
-                "       tmp1.endDate, " +
-                "       tmp1.upd_freq, " +
-                "       tmp1.unified, " +
-                "       tmp1.product, " +
-                "       tmp1.BelongsArea, " +
-                "       tmp1.measure, " +
-                "       tmp1.caliber, " +
-                "       data.pubDate, " +
-                "       data.measureName, " +
-                "       data.measureValue, " +
-                "       ROW_NUMBER() OVER (PARTITION BY tmp1.IndicatorCode ORDER BY data.pubDate DESC) AS row_num " +
-                "FROM filtered_index tmp1 " +
-                "JOIN data ON tmp1.IndicatorCode = data.IndicatorCode " +
-                ")" +
-                "SELECT * FROM rank_Table";
-        sparkSession.sql(rankTableSql).createOrReplaceTempView("rank_Table");
-//sparkSession.sql(rankTableSql).show();
-    }
     //  Return SQL query statement
-    private static String getSql(){
-        return "with tmp1 as (select IndicatorCode,IndicatorName,unified,BelongsArea,measure,measureValue,pubDate,product,row_num,\n" +
-                "                      LEAD(measureValue) OVER (PARTITION BY IndicatorCode ORDER BY pubDate desc) AS yesterday_price\n" +
-                "              from rank_Table\n" +
-                "              WHERE measureValue is not null\n" +
-                "                and row_num <= 2\n" +
-                ")\n" +
+    private static String getSql() {
+        //  Get attr column
+        String jsonSchema = "struct<product:struct<attrName:string>,BelongsArea:struct<attrName:string>,measure:struct<attrName:string>>";
+
+        return  "WITH parsed_content AS (\n" +
+                "    SELECT IndicatorCode,\n" +
+                "          IndicatorName,\n" +
+                "           unified,\n" +
+                "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
+                "    FROM index " +
+               /* "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID = '576286732d09ed469c19faa9') a join tree b on b.pathId like concat('%',a.treeid, '%'))"+//线螺:566a4557dc484579c754xl53  //甲醇:576286732d09ed469c19faa9 //大豆:100000002*/
+                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('576286732d09ed469c19faa9','566a4557dc484579c754xl53', '100000002')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
+                "),\n" +
+                "tmp AS (\n" +
+                "    SELECT IndicatorCode,\n" +
+                "           IndicatorName,\n" +
+                "           unified,\n" +
+                "           parsedContent.product.attrName AS product,\n" +
+                "           parsedContent.BelongsArea.attrName AS BelongsArea,\n" +
+                "           parsedContent.measure.attrName AS measure\n" +
+                "    FROM parsed_content  \n" +
+                "),\n" +
+                "rank_Table AS (\n" +
+                "    SELECT tmp.IndicatorCode,\n" +
+                "           tmp.IndicatorName,\n" +
+                "           tmp.unified,\n" +
+                "           tmp.product,\n" +
+                "           tmp.BelongsArea,\n" +
+                "           tmp.measure,\n" +
+                "           data.pubDate,\n" +
+                "           data.measureValue,\n" +
+                "           ROW_NUMBER() OVER (PARTITION BY tmp.IndicatorCode ORDER BY data.pubDate DESC) AS row_num\n" +
+                "    FROM tmp\n" +
+                "    JOIN data ON tmp.IndicatorCode = data.IndicatorCode" +
+                " where data.measureName != 'remark' and data.pubDate >= date_add(current_date(), -400)\n" +
+                "),\n" +
+                "tmp1 as (SELECT IndicatorCode,\n" +
+                "           IndicatorName,\n" +
+                "           unified,\n" +
+                "           product,\n" +
+                "           BelongsArea,\n" +
+                "           measure,\n" +
+                "           pubDate,\n" +
+                "           measureValue,\n" +
+                "           row_num,\n" +
+                "        LEAD(measureValue) OVER (PARTITION BY IndicatorCode ORDER BY pubDate desc) AS yesterday_price\n" +
+                "FROM rank_Table  where row_num <= 2) "+
                 "select IndicatorCode                                            as indicator_code,\n" +
                 "       IndicatorName                                            as indicator_name,\n" +
                 "       BelongsArea                                              as address,\n" +
@@ -150,6 +133,7 @@ public class JC_Price_Table {
                 "       product                                                  as product\n" +
                 "from tmp1 where row_num = 1";
     }
+
     //  write to Tidb
     private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password, String table) {
         dataFrame.repartition(10).write()

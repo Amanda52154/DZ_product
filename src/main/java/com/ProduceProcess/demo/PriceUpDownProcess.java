@@ -73,42 +73,6 @@ public class PriceUpDownProcess {
         //  Get attr column
         String jsonSchema = "struct<product:struct<attrName:string>,BelongsArea:struct<attrName:string>,measure:struct<attrName:string>,upd_freq:struct<attrName:string>,caliber:struct<attrName:string>>";
 
-        /*String getContentSql = "select distinct IndicatorCode, content from index";
-        Dataset<Row> contentData = sparkSession.sql(getContentSql);
-        Dataset<Row> parsedData = contentData.selectExpr("IndicatorCode", "from_json(content, '" + jsonSchema + "') as parsedContent");
-        parsedData.selectExpr("IndicatorCode", "parsedContent.product.attrName as product", "parsedContent.BelongsArea.attrName as BelongsArea", "parsedContent.measure.attrName as measure", "parsedContent.upd_freq.attrName as upd_freq", "parsedContent.caliber.attrName as caliber").createOrReplaceTempView("tmp");
-
-            String ranke_tabel = "SELECT tmp1.IndicatorCode,\n" +
-                    "           tmp1.IndicatorName,\n" +
-                    "           tmp1.endDate,\n" +
-                    "           tmp1.upd_freq,\n" +
-                    "           tmp1.unified,\n" +
-                    "           tmp1.product,\n" +
-                    "           tmp1.BelongsArea,\n" +
-                    "           tmp1.measure,\n" +
-                    "           tmp1.caliber,\n" +
-                    "           data.pubDate,\n" +
-                    "           data.measureName,\n" +
-                    "           data.measureValue,\n" +
-                    "           ROW_NUMBER() OVER (PARTITION BY tmp1.IndicatorCode ORDER BY data.pubDate DESC) AS row_num\n" +
-                    "    FROM (\n" +
-                    "             SELECT index.IndicatorCode,\n" +
-                    "                    index.IndicatorName,\n" +
-                    "                    index.endDate,\n" +
-                    "                    index.upd_freq,\n" +
-                    "                    index.unified,\n" +
-                    "                    tmp.product,\n" +
-                    "                    tmp.BelongsArea,\n" +
-                    "                    tmp.measure,\n" +
-                    "                    tmp.caliber\n" +
-                    "             FROM index\n" +
-                    "                      LEFT JOIN tmp ON index.IndicatorCode = tmp.IndicatorCode\n" +
-                    "             WHERE product = '大豆'\n" +
-                    "               AND index.IndicatorCode = '1340163828'\n" +
-                    "         ) AS tmp1\n" +
-                    "             LEFT JOIN data ON tmp1.IndicatorCode = data.IndicatorCode";
-            sparkSession.sql(ranke_tabel).createOrReplaceTempView("ranke_Table");
-            sparkSession.sql(ranke_tabel).show();*/
 
         String rankTableSql = "WITH parsed_content AS (" +
                 "SELECT IndicatorCode, " +

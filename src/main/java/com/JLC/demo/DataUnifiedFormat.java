@@ -55,8 +55,8 @@ public class DataUnifiedFormat {
         Dataset<Row> dataDF = sparkSession.sql(dataChange);
 
         if (dataDF != null) {
-            dataDF.show();
-//            writeToTiDB(dataDF, tidbUrl, tidbUser, tidbPassword, sinkTable);
+//            dataDF.show();
+            writeToTiDB(dataDF, tidbUrl, tidbUser, tidbPassword, sinkTable);
         }
         sparkSession.stop();
     }

@@ -62,10 +62,10 @@ public class IndexUnifiedFormat {
                 "           else u.unified\n" +
                 "           end as unified\n" +
                 "from index i\n" +
-                "         left join Unit u on i.id = u.id";
+                "         left join Unit u on i.id = u.id ";
         Dataset<Row> indexDF = sparkSession.sql(getTmptable);
         if (indexDF != null) {
-//            indexDF.show();
+            indexDF.show();
             writeToTiDB(indexDF, tidbUrl, tidbUser, tidbPassword, sinkTable);
         }
         sparkSession.stop();
@@ -101,10 +101,17 @@ public class IndexUnifiedFormat {
         Dataset<Row> explodedDf = attrData.select(col("ID"), from_json(col("attr"), schema).as("attrArray"))
                 .select(col("ID"), explode(col("attrArray")).as("attr"))
                 .select(col("ID"), col("attr.attrField"), col("attr.attrName"));
+
         // Check whether the attrField column contains' Unit', to assign the value of the attrName column to the new unified column
-        Dataset<Row> unifiedDf = explodedDf.withColumn("unified", when(lower(col("attrField")).contains("unit"), col("attrName")).otherwise(null));
-        // Merge data so that there is only one row per ID // Create tmp view
-        unifiedDf.groupBy("ID").agg(first("unified", true).as("unified")).createOrReplaceTempView("Unit");
+        Dataset<Row> unifiedDf = explodedDf.withColumn("unified", when(lower(col("attrField")).contains("unit"), col("attrName")).otherwise(null))
+                .withColumn("product", when(lower(col("attrField")).contains("product"), col("attrName")).otherwise(null));
+        // Merge data so that there is only one row per ID
+        // Create tmp view
+        unifiedDf.createOrReplaceTempView("temp_unifiedDf");
+
+        // Use the temp view to group by ID and aggregate the unified and product columns
+        sparkSession.sql("SELECT ID, first(unified, true) AS unified, first(product, true) AS product FROM temp_unifiedDf GROUP BY ID").createOrReplaceTempView("Unit");
+
     }
 
     private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password, String table) {
