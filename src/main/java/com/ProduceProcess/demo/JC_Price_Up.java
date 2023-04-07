@@ -79,7 +79,7 @@ public class JC_Price_Up {
                 "           unified,\n" +
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
-                "where IndicatorCode in ('58257969e80c2431e8e5d3da','57c8f3cce80c19cd2f334c88','DD1340163828DD')\n" +
+                "where IndicatorCode in ('LWG3130033957LWG','JC2130035483JC','DD1340163828DD')\n" +
 //                "where IndicatorCode ='58257969e80c2431e8e5d3da'\n" +//线螺
 //                "where IndicatorCode ='1340163828'\n" +//大豆
 //                "where IndicatorCode ='57c8f3cce80c19cd2f334c88'\n" +//甲醇

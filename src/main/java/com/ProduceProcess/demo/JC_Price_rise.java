@@ -83,8 +83,8 @@ public class JC_Price_rise {
                 "           unified,\n" +
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
-               /*"where IndicatorCode in (select b.treeID from(select treeid from tree where treeID = '58256e0ce80c2431e8e5a107') a join tree b on b.pathId like concat('%',a.treeid, '%'))"+//线螺:58256e0ce80c2431e8e5a107 //甲醇:57c8f3cce80c19cd2f334c82 //大豆:100000003*/
-                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('58256e0ce80c2431e8e5a107','57c8f3cce80c19cd2f334c82', 'DD100000003DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
+                //线螺:58256e0ce80c2431e8e5a107 //甲醇:57c8f3cce80c19cd2f334c82 //大豆:100000003*/
+                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('LWG3130041966LWG','JC2130036379JC', 'DD100000003DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
                 "),\n" +
                 "tmp AS (\n" +
                 "    SELECT IndicatorCode,\n" +

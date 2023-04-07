@@ -54,13 +54,13 @@ public class Data2Product {
                 .config("spark.executor.memory", "4g")
                 .getOrCreate();
         //      get tmpView
-        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
+//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, dataTable).createOrReplaceTempView("data");
-        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
+//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
         //      Process Price_up_table data
         Dataset<Row> price_upDF = sparkSession.sql(getSql());
-        price_upDF.show();
-//        writeToTiDB(price_upDF, tidbUrl_product, tidbUser_p, tidbPassword_p, sinkTable_tree);
+//        price_upDF.show();
+        writeToTiDB(price_upDF, tidbUrl_product, tidbUser_p, tidbPassword_p, sinkTable_data);
         sparkSession.stop();
     }
 
@@ -79,14 +79,16 @@ public class Data2Product {
     //  Return SQL query statement
     private static String getSql(){
 
-        return " select * from tree";
-//        "select * from index";
-                /*"select IndicatorCode,\n" +
+        return "select IndicatorCode,\n" +
                 "pubDate,\n" +
                 "measureName,\n" +
                 "measureValue,\n" +
                 "updateDate,\n" +
-                "insertDate from data where IndicatorCode like 'LWG%LWG' and year(pubDate) >= '2019'";*/
+                "insertDate from data  where IndicatorCode like 'LWG%LWG' and year(pubDate) >='2019' ";
+//        <'2015'    >='2015'     < '2019'  >= '2019'
+//                " select * from tree";
+//        "select * from index";
+
     }
     //  write to Tidb
     private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password, String table) {

@@ -79,7 +79,7 @@ public class JC_Down_Consumer {
                 "           unified,\n" +
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
-                "where IndicatorCode in (select treeID from tree where PID ='620361dae4b08f1971b3fb12')\n" +
+                "where IndicatorCode in (select treeID from tree where PID ='JC2130036302JC')\n" + //620361dae4b08f1971b3fb12
                 "),\n" +
                 "tmp AS (\n" +
                 "    SELECT IndicatorCode,\n" +

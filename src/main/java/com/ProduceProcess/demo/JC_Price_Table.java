@@ -54,7 +54,7 @@ public class JC_Price_Table {
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
 
         Dataset<Row> priceDF = sparkSession.sql(getSql());
-//        priceDF.show();
+        priceDF.show();
         writeToTiDB(priceDF, tidbUrl_product, tidbUser, tidbPassword, priceTable);
         sparkSession.stop();
     }
@@ -82,8 +82,8 @@ public class JC_Price_Table {
                 "           unified,\n" +
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
-               /* "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID = '576286732d09ed469c19faa9') a join tree b on b.pathId like concat('%',a.treeid, '%'))"+//线螺:566a4557dc484579c754xl53  //甲醇:576286732d09ed469c19faa9 //大豆:100000002*/
-                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('576286732d09ed469c19faa9','566a4557dc484579c754xl53', 'DD100000002DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
+                 //线螺:566a4557dc484579c754xl53  //甲醇:576286732d09ed469c19faa9 //大豆:100000002*/
+                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('JC2130035555JC','LWG3130041908LWG', 'DD100000002DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
                 "),\n" +
                 "tmp AS (\n" +
                 "    SELECT IndicatorCode,\n" +
