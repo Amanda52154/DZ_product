@@ -56,7 +56,6 @@ public class JC_Price_Table {
         Dataset<Row> priceDF = sparkSession.sql(getSql());
 //        priceDF.show();
         writeToTiDB(priceDF, tidbUrl_product, tidbUser, tidbPassword, priceTable);
-
         sparkSession.stop();
     }
 
@@ -107,7 +106,7 @@ public class JC_Price_Table {
                 "           ROW_NUMBER() OVER (PARTITION BY tmp.IndicatorCode ORDER BY data.pubDate DESC) AS row_num\n" +
                 "    FROM tmp\n" +
                 "    JOIN data ON tmp.IndicatorCode = data.IndicatorCode" +
-                " where data.measureName != 'remark' and data.pubDate >= date_add(current_date(), -400)\n" +
+                " where data.measureName != 'remark' \n" +
                 "),\n" +
                 "tmp1 as (SELECT IndicatorCode,\n" +
                 "           IndicatorName,\n" +

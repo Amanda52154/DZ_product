@@ -64,7 +64,7 @@ public class JLCDateToTIDB {
         for (String pathId : stringList) {
             String data_jsonBody = String.format("{" +
                     "\"idxId\": \"%s\"," +
-                    "\"queryColumns\": \"idxId,valueName,value,publishDt,remark\"," +
+                    "\"queryColumns\": \"idxId,valueName,value,publishDt,remark,dataId\"," +
                     "\"isPaging\": 1," +
                     "\"pageNum\": 1," +
                     "\"pageSize\": 1000" +
@@ -73,8 +73,8 @@ public class JLCDateToTIDB {
                 String data_jsonResponse = apiHelper.fetchData01(data_jsonBody);
                 Dataset<Row> data_dataFrame = Objects.requireNonNull(parseJsonToDataFrame_data(sparkSession, data_jsonResponse));
 
-                //                    data_dataFrame.show();
-                writeToTiDB(data_dataFrame, tidbUrl, tidbUser, tidbPassword, dataTable);
+                                    data_dataFrame.show();
+//                writeToTiDB(data_dataFrame, tidbUrl, tidbUser, tidbPassword, dataTable);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -121,12 +121,14 @@ public class JLCDateToTIDB {
                         new StructField("idxId", DataTypes.StringType, true, Metadata.empty()),
                         new StructField("publishDt", DataTypes.StringType, true, Metadata.empty()),
                         new StructField("valueName", DataTypes.StringType, true, Metadata.empty()),
-                        new StructField("value", DataTypes.StringType, true, Metadata.empty())
+                        new StructField("value", DataTypes.StringType, true, Metadata.empty()),
+                        new StructField("remark", DataTypes.StringType, true, Metadata.empty()),
+                        new StructField("dataId", DataTypes.StringType, true, Metadata.empty())
                 });
 
                 List<Row> data_rows = new ArrayList<>();
                 for (Map<String, String> map : content) {
-                    Row row = RowFactory.create(map.get("idxId"), map.get("publishDt"), map.get("valueName"), map.get("value"));
+                    Row row = RowFactory.create(map.get("idxId"), map.get("publishDt"), map.get("valueName"), map.get("value"), map.get("remark"), map.get("dataId"));
                     data_rows.add(row);
                 }
 
