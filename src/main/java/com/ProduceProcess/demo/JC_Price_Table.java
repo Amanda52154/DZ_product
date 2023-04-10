@@ -43,9 +43,9 @@ public class JC_Price_Table {
 
         SparkSession sparkSession = SparkSession.builder()
                 .appName("JLCDataUnifiedFormat")
-//                .master("local[*]")
+                .master("local[*]")
                 .config("spark.driver.memory", "4g")
-                .config("spark.executor.memory", "4g")
+                .config("spark.executor.memory", "8g")
                 .getOrCreate();
 
         //      get tmpView
@@ -54,7 +54,7 @@ public class JC_Price_Table {
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
 
         Dataset<Row> priceDF = sparkSession.sql(getSql());
-        priceDF.show();
+//        priceDF.show();
         writeToTiDB(priceDF, tidbUrl_product, tidbUser, tidbPassword, priceTable);
         sparkSession.stop();
     }
@@ -74,16 +74,16 @@ public class JC_Price_Table {
     //  Return SQL query statement
     private static String getSql() {
         //  Get attr column
-        String jsonSchema = "struct<product:struct<attrName:string>,BelongsArea:struct<attrName:string>,measure:struct<attrName:string>>";
+        String jsonSchema = "struct<product:struct<attrName:string>,BelongsArea:struct<attrName:string>,measure:struct<attrNameAbbr:string>>";
 
         return  "WITH parsed_content AS (\n" +
                 "    SELECT IndicatorCode,\n" +
                 "          IndicatorName,\n" +
-                "           unified,\n" +
+                "          if(unified ='元', '元/吨', unified) as unified,\n" +
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
                  //线螺:566a4557dc484579c754xl53  //甲醇:576286732d09ed469c19faa9 //大豆:100000002*/
-                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('JC2130035555JC','LWG3130041908LWG', 'DD100000002DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
+                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('JC2130002151JC','LWG3130008504LWG', 'DD100000002DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
                 "),\n" +
                 "tmp AS (\n" +
                 "    SELECT IndicatorCode,\n" +
@@ -91,7 +91,7 @@ public class JC_Price_Table {
                 "           unified,\n" +
                 "           parsedContent.product.attrName AS product,\n" +
                 "           parsedContent.BelongsArea.attrName AS BelongsArea,\n" +
-                "           parsedContent.measure.attrName AS measure\n" +
+                "           parsedContent.measure.attrNameAbbr AS measure\n" +
                 "    FROM parsed_content  \n" +
                 "),\n" +
                 "rank_Table AS (\n" +
@@ -106,7 +106,8 @@ public class JC_Price_Table {
                 "           ROW_NUMBER() OVER (PARTITION BY tmp.IndicatorCode ORDER BY data.pubDate DESC) AS row_num\n" +
                 "    FROM tmp\n" +
                 "    JOIN data ON tmp.IndicatorCode = data.IndicatorCode" +
-                " where data.measureName != 'remark' \n" +
+                " where data.measureName != 'remark' " +
+                "and pubDate >= '2022-01-01'\n" +
                 "),\n" +
                 "tmp1 as (SELECT IndicatorCode,\n" +
                 "           IndicatorName,\n" +

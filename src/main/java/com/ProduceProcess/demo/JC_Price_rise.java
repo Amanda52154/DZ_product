@@ -43,10 +43,9 @@ public class JC_Price_rise {
 
         SparkSession sparkSession = SparkSession.builder()
                 .appName("JLCDataUnifiedFormat")
-//                .master("local[*]")
+                .master("local[*]")
                 .config("spark.driver.memory", "4g")
                 .config("spark.executor.memory", "8g")
-                .config("spark.executor.extraJavaOptions", "-XX:+UseG1GC")
                 .getOrCreate();
         //      get tmpView
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
@@ -80,11 +79,11 @@ public class JC_Price_rise {
         String rankTableSql = "WITH parsed_content AS (\n" +
                 "    SELECT IndicatorCode,\n" +
                 "          IndicatorName,\n" +
-                "           unified,\n" +
+                "           '元/吨' as unified,\n" +
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
                 //线螺:58256e0ce80c2431e8e5a107 //甲醇:57c8f3cce80c19cd2f334c82 //大豆:100000003*/
-                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('LWG3130041966LWG','JC2130036379JC', 'DD100000003DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
+                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('LWG3130008562LWG','JC2130002975JC', 'DD100000003DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
                 "),\n" +
                 "tmp AS (\n" +
                 "    SELECT IndicatorCode,\n" +
@@ -105,7 +104,7 @@ public class JC_Price_rise {
                 "           ROW_NUMBER() OVER (PARTITION BY tmp.IndicatorCode ORDER BY data.pubDate DESC) AS row_num\n" +
                 "    FROM tmp\n" +
                 "    JOIN data ON tmp.IndicatorCode = data.IndicatorCode" +
-                " where data.measureName != 'remark' \n" +
+                " where data.measureName != 'remark' and  data.pubDate >= '2022-01-01'\n" +
                 ")\n" +
                 "SELECT IndicatorCode,\n" +
                 "           IndicatorName,\n" +
@@ -173,7 +172,7 @@ public class JC_Price_rise {
                 "to_date,\n" +
                 "unit,\n" +
                 "rise_fall as ring_ratio,\n" +
-                "measure_value_difference as yoy\n" +
+                "if(measure_value_difference is null, 0, measure_value_difference) as yoy\n" +
                 "from rise_fall_table rft\n" +
                 "         left join yoy_tabel yt\n" +
                 "                   on rft.indicator_code = yt.IndicatorCode";

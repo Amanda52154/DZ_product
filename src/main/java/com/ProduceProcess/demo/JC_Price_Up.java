@@ -42,7 +42,7 @@ public class JC_Price_Up {
 
         SparkSession sparkSession = SparkSession.builder()
                 .appName("JLCDataUnifiedFormat")
-//                .master("local[*]")
+                .master("local[*]")
                 .config("spark.driver.memory", "4g")
                 .config("spark.executor.memory", "4g")
                 .getOrCreate();
@@ -72,14 +72,14 @@ public class JC_Price_Up {
     //  Return SQL query statement
     private static String getSql(){
         //  Get attr column
-        String jsonSchema = "struct<product:struct<attrName:string>,measure:struct<attrName:string>>";
+        String jsonSchema = "struct<product:struct<attrName:string>>";
         return  "WITH parsed_content AS (\n" +
                 "    SELECT IndicatorCode,\n" +
                 "          IndicatorName,\n" +
                 "           unified,\n" +
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
-                "where IndicatorCode in ('LWG3130033957LWG','JC2130035483JC','DD1340163828DD')\n" +
+                "where IndicatorCode in ('LWG3130005585LWG','JC2130002976JC','DD1340163828DD')\n" +
 //                "where IndicatorCode ='58257969e80c2431e8e5d3da'\n" +//线螺
 //                "where IndicatorCode ='1340163828'\n" +//大豆
 //                "where IndicatorCode ='57c8f3cce80c19cd2f334c88'\n" +//甲醇
@@ -88,8 +88,7 @@ public class JC_Price_Up {
                 "    SELECT IndicatorCode,\n" +
                 "           IndicatorName,\n" +
                 "           unified,\n" +
-                "           parsedContent.product.attrName AS product,\n" +
-                "           parsedContent.measure.attrName AS measure\n" +
+                "           parsedContent.product.attrName AS product\n" +
                 "    FROM parsed_content \n" +
                 "),\n" +
                 "rank_Table AS (\n" +
@@ -97,19 +96,18 @@ public class JC_Price_Up {
                 "           tmp.IndicatorName,\n" +
                 "           tmp.unified,\n" +
                 "           tmp.product,\n" +
-                "           tmp.measure,\n" +
                 "           data.pubDate,\n" +
                 "           data.measureValue,\n" +
                 "           ROW_NUMBER() OVER (PARTITION BY tmp.IndicatorCode ORDER BY data.pubDate DESC) AS row_num\n" +
                 "    FROM tmp\n" +
                 "    JOIN data ON tmp.IndicatorCode = data.IndicatorCode" +
-                " where data.measureName != 'remark' \n" +
+                " where data.measureName != 'remark' " +
+                "and pubDate between '2023-03-01' and '2023-03-16' \n" +
                 "),\n" +
                 "tmp1 as (SELECT IndicatorCode,\n" +
                 "           IndicatorName,\n" +
                 "           unified,\n" +
                 "           product,\n" +
-                "           measure,\n" +
                 "           pubDate,\n" +
                 "           measureValue,\n" +
                 "       row_num,\n" +

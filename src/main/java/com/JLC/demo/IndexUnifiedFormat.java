@@ -57,7 +57,7 @@ public class IndexUnifiedFormat {
                 "           else i.updFreq\n" +
                 "        end as upd_freq,\n" +
                 "       case\n" +
-                "           when u.unified like \"%,_\" then REPLACE(u.unified, ',', '/')\n" +
+                "           when u.unified like \"%,%\" then REPLACE(u.unified, ',', '/')\n" +
                 "           when u.unified like \"_,\" then REPLACE(u.unified, ',', '')\n" +
                 "           else u.unified\n" +
                 "           end as unified\n" +

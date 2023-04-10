@@ -51,7 +51,7 @@ public class Data2Product {
                 .appName("JLCDataUnifiedFormat")
                 .master("local[*]")
                 .config("spark.driver.memory", "4g")
-                .config("spark.executor.memory", "4g")
+                .config("spark.executor.memory", "8g")
                 .getOrCreate();
         //      get tmpView
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
@@ -84,10 +84,10 @@ public class Data2Product {
                 "measureName,\n" +
                 "measureValue,\n" +
                 "updateDate,\n" +
-                "insertDate from data  where IndicatorCode like 'LWG%LWG' and year(pubDate) >='2019' ";
-//        <'2015'    >='2015'     < '2019'  >= '2019'
+                "insertDate from data  where IndicatorCode like 'LWG%LWG' and year(pubDate)> '2019' ";
+//        <'2015'    and year(pubDate) >'2019'
 //                " select * from tree";
-//        "select * from index";
+//        "select * from index";  year(pubDate) between '2015' and '2019'
 
     }
     //  write to Tidb

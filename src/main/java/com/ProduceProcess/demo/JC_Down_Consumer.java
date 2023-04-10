@@ -42,7 +42,7 @@ public class JC_Down_Consumer {
 
         SparkSession sparkSession = SparkSession.builder()
                 .appName("JLCDataUnifiedFormat")
-//                .master("local[*]")
+                .master("local[*]")
                 .config("spark.driver.memory", "4g")
                 .config("spark.executor.memory", "4g")
                 .getOrCreate();
@@ -52,7 +52,7 @@ public class JC_Down_Consumer {
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
         //      Process Price_up_table data
         Dataset<Row> price_upDF = sparkSession.sql(getSql());
-//        price_upDF.show();
+        price_upDF.show();
         writeToTiDB(price_upDF, tidbUrl_product, tidbUser, tidbPassword, downConsumerTable);
         sparkSession.stop();
     }
@@ -71,7 +71,7 @@ public class JC_Down_Consumer {
 
     //  Return SQL query statement
     private static String getSql(){
-        String jsonSchema = "struct<product:struct<attrName:string>,measure:struct<attrName:string>>";
+        String jsonSchema = "struct<product:struct<attrName:string>,measure:struct<attrNameAbbr:string>>";
 
         return "WITH parsed_content AS (\n" +
                 "    SELECT IndicatorCode,\n" +
@@ -79,14 +79,14 @@ public class JC_Down_Consumer {
                 "           unified,\n" +
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
-                "where IndicatorCode in (select treeID from tree where PID ='JC2130036302JC')\n" + //620361dae4b08f1971b3fb12
+                "where IndicatorCode in (select treeID from tree where PID ='JC2130002898JC')\n" + //620361dae4b08f1971b3fb12
                 "),\n" +
                 "tmp AS (\n" +
                 "    SELECT IndicatorCode,\n" +
                 "           IndicatorName,\n" +
                 "           unified,\n" +
                 "           parsedContent.product.attrName AS product,\n" +
-                "           parsedContent.measure.attrName AS measure\n" +
+                "           parsedContent.measure.attrNameAbbr AS measure\n" +
                 "    FROM parsed_content \n" +
                 "),\n" +
                 "rank_Table AS (\n" +
