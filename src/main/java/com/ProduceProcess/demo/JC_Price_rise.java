@@ -36,8 +36,8 @@ public class JC_Price_rise {
         String tidbUser = prop.getProperty("tidb.user");
         String tidbPassword = prop.getProperty("tidb.password");
 
-        String indexTable = "st_spzs_index";
-        String dataTable = "st_spzs_data";
+        String indexTable = "st_spzs_index ";
+        String dataTable = "(select * from st_spzs_data where measureName in('price', 'hightestPrice', 'DV1') and pubDate between '2022-01-01' and '2023-03-30')t";
         String treeTable = "st_spzs_tree";
         String priceRiseFallTable = "price_rise_fall";
 
@@ -54,7 +54,7 @@ public class JC_Price_rise {
         getTmpView(sparkSession);
 
         Dataset<Row> price_riseDF = sparkSession.sql(getSql());
-//        price_riseDF.show();
+        price_riseDF.show();
         writeToTiDB(price_riseDF, tidbUrl_product, tidbUser, tidbPassword, priceRiseFallTable);
         sparkSession.stop();
     }
@@ -83,7 +83,7 @@ public class JC_Price_rise {
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
                 //线螺:58256e0ce80c2431e8e5a107 //甲醇:57c8f3cce80c19cd2f334c82 //大豆:100000003*/
-                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('LWG3130008562LWG','JC2130002975JC', 'DD100000003DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
+                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('LWG3130008562LWG','JC2130002975JC','DD100000003DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
                 "),\n" +
                 "tmp AS (\n" +
                 "    SELECT IndicatorCode,\n" +
@@ -104,7 +104,6 @@ public class JC_Price_rise {
                 "           ROW_NUMBER() OVER (PARTITION BY tmp.IndicatorCode ORDER BY data.pubDate DESC) AS row_num\n" +
                 "    FROM tmp\n" +
                 "    JOIN data ON tmp.IndicatorCode = data.IndicatorCode" +
-                " where data.measureName != 'remark' and  data.pubDate >= '2022-01-01'\n" +
                 ")\n" +
                 "SELECT IndicatorCode,\n" +
                 "           IndicatorName,\n" +
@@ -175,7 +174,7 @@ public class JC_Price_rise {
                 "if(measure_value_difference is null, 0, measure_value_difference) as yoy\n" +
                 "from rise_fall_table rft\n" +
                 "         left join yoy_tabel yt\n" +
-                "                   on rft.indicator_code = yt.IndicatorCode";
+                "                   on rft.indicator_code = yt.IndicatorCode where to_date = '2023-03-30'";
     }
     //  write to Tidb
     private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password, String table) {

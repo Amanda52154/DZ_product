@@ -10,6 +10,8 @@ import org.apache.spark.sql.SparkSession;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 
 /**
@@ -35,8 +37,13 @@ public class JC_Price_Up {
         String tidbUser = prop.getProperty("tidb.user");
         String tidbPassword = prop.getProperty("tidb.password");
 
+        List<String> DateList = Arrays.asList(
+                "2023-04-03",
+                "2023-03-31"
+        );
+
         String indexTable = "st_spzs_index";
-        String dataTable = "st_spzs_data";
+        String dataTable = "(select * from st_spzs_data where measureName in('price', 'hightestPrice', 'DV1') and pubDate between '2023-03-01' and '2023-03-30')t";
         String treeTable = "st_spzs_tree";
         String priceUpDownTable = "price_up_down";
 
@@ -52,7 +59,7 @@ public class JC_Price_Up {
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
         //      Process Price_up_table data
         Dataset<Row> price_upDF = sparkSession.sql(getSql());
-//        price_upDF.show();
+        price_upDF.show();
         writeToTiDB(price_upDF, tidbUrl_product, tidbUser, tidbPassword, priceUpDownTable);
         sparkSession.stop();
     }
@@ -101,8 +108,6 @@ public class JC_Price_Up {
                 "           ROW_NUMBER() OVER (PARTITION BY tmp.IndicatorCode ORDER BY data.pubDate DESC) AS row_num\n" +
                 "    FROM tmp\n" +
                 "    JOIN data ON tmp.IndicatorCode = data.IndicatorCode" +
-                " where data.measureName != 'remark' " +
-                "and pubDate between '2023-03-01' and '2023-03-16' \n" +
                 "),\n" +
                 "tmp1 as (SELECT IndicatorCode,\n" +
                 "           IndicatorName,\n" +
@@ -122,7 +127,7 @@ public class JC_Price_Up {
                 "       pubDate                                         as to_date,\n" +
                 "       unified                                         as unit,\n" +
                 "       product                                         as product\n" +
-                "from tmp1 where row_num = 1";
+                "from tmp1 where row_num = 1 and pubDate = '2023-03-30'";//
     }
     //  write to Tidb
     private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password, String table) {

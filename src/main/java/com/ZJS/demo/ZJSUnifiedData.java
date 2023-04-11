@@ -41,7 +41,7 @@ public class ZJSUnifiedData {
         String tidbUser = prop.getProperty("tidb.user");
         String tidbPassword = prop.getProperty("tidb.password");
 
-        String indicatordatavTable = "c_in_indicatordatav";
+        String indicatordatavTable = "c_in_indicatordatav";/*"(select * from c_in_indicatordatav where zjs_update_time >= '2023-03-30') t";*/
         String indicatormainTable = "c_in_indicatormain";
         String systemconstTable = "c_in_systemconst";
         String dictionaryTable = "c_in_dictionary";

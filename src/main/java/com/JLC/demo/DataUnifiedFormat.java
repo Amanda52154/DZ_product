@@ -34,7 +34,7 @@ public class DataUnifiedFormat {
         String tidbUser = prop.getProperty("tidb.user");
         String tidbPassword = prop.getProperty("tidb.password");
 
-        String dataTable = "jlc_data";
+        String dataTable = "jlc_data"; /*"(select * from jlc_data where publishDt between '2023-04-01' and '2023-04-11' and 1=1) t";*/
         String sinkTable = "st_jlc_data";
 
         SparkSession sparkSession = SparkSession.builder()
@@ -51,7 +51,7 @@ public class DataUnifiedFormat {
                 "value as measureValue,\n" +
                 "current_timestamp() as updateDate,\n" +
                 "current_timestamp() as insertDate\n" +
-                "from data";
+                "from data  ";
         Dataset<Row> dataDF = sparkSession.sql(dataChange);
 
         if (dataDF != null) {
@@ -66,10 +66,10 @@ public class DataUnifiedFormat {
                 .format("jdbc")
                 .option("url", url)
                 .option("driver", "com.mysql.jdbc.Driver")
-                .option("dbtable", table)
+                .option("dbtable", table )
                 .option("user", user)
                 .option("password", password)
-                .load().toDF();
+                .load();
     }
 
 

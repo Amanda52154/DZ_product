@@ -10,6 +10,8 @@ import org.apache.spark.sql.SparkSession;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 
 /**
@@ -35,8 +37,9 @@ public class JC_Price_Table {
         String tidbUser = prop.getProperty("tidb.user");
         String tidbPassword = prop.getProperty("tidb.password");
 
+
         String indexTable = "st_spzs_index";
-        String dataTable = "st_spzs_data";
+        String dataTable = "(select * from st_spzs_data where measureName in ('DV1','hightestPrice','price') and pubDate between '2023-01-01' and '2023-03-30')t";
         String treeTable = "st_spzs_tree";
         String priceTable = "price_data";
 
@@ -54,7 +57,7 @@ public class JC_Price_Table {
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
 
         Dataset<Row> priceDF = sparkSession.sql(getSql());
-//        priceDF.show();
+        priceDF.show();
         writeToTiDB(priceDF, tidbUrl_product, tidbUser, tidbPassword, priceTable);
         sparkSession.stop();
     }
@@ -68,7 +71,7 @@ public class JC_Price_Table {
                 .option("dbtable", table)
                 .option("user", user)
                 .option("password", password)
-                .load().toDF();
+                .load();
     }
 
     //  Return SQL query statement
@@ -83,8 +86,7 @@ public class JC_Price_Table {
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
                  //线螺:566a4557dc484579c754xl53  //甲醇:576286732d09ed469c19faa9 //大豆:100000002*/
-                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('JC2130002151JC','LWG3130008504LWG', 'DD100000002DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))"+
-                "),\n" +
+                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('JC2130002151JC','LWG3130008504LWG', 'DD100000002DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))),\n" +
                 "tmp AS (\n" +
                 "    SELECT IndicatorCode,\n" +
                 "           IndicatorName,\n" +
@@ -106,8 +108,6 @@ public class JC_Price_Table {
                 "           ROW_NUMBER() OVER (PARTITION BY tmp.IndicatorCode ORDER BY data.pubDate DESC) AS row_num\n" +
                 "    FROM tmp\n" +
                 "    JOIN data ON tmp.IndicatorCode = data.IndicatorCode" +
-                " where data.measureName != 'remark' " +
-                "and pubDate >= '2022-01-01'\n" +
                 "),\n" +
                 "tmp1 as (SELECT IndicatorCode,\n" +
                 "           IndicatorName,\n" +
@@ -119,7 +119,7 @@ public class JC_Price_Table {
                 "           measureValue,\n" +
                 "           row_num,\n" +
                 "        LEAD(measureValue) OVER (PARTITION BY IndicatorCode ORDER BY pubDate desc) AS yesterday_price\n" +
-                "FROM rank_Table  where row_num <= 2) "+
+                "FROM rank_Table  where row_num <= 2 ) "+
                 "select IndicatorCode                                            as indicator_code,\n" +
                 "       IndicatorName                                            as indicator_name,\n" +
                 "       BelongsArea                                              as address,\n" +
@@ -131,7 +131,7 @@ public class JC_Price_Table {
                 "       unified                                                  as unit,\n" +
                 "       pubDate                                                  as `Date`,\n" +
                 "       product                                                  as product\n" +
-                "from tmp1 where row_num = 1";
+                "from tmp1 where row_num = 1 and pubDate ='2023-03-30' order by pubDate";
     }
 
     //  write to Tidb

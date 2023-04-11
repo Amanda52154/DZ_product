@@ -36,7 +36,7 @@ public class JC_Down_Consumer {
         String tidbPassword = prop.getProperty("tidb.password");
 
         String indexTable = "st_spzs_index";
-        String dataTable = "st_spzs_data";
+        String dataTable = "(select * from st_spzs_data where pubDate > '2022-01-01')t";
         String treeTable = "st_spzs_tree";
         String downConsumerTable = "down_consumer";
 
