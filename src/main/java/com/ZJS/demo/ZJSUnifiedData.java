@@ -41,7 +41,7 @@ public class ZJSUnifiedData {
         String tidbUser = prop.getProperty("tidb.user");
         String tidbPassword = prop.getProperty("tidb.password");
 
-        String indicatordatavTable = "c_in_indicatordatav";/*"(select * from c_in_indicatordatav where zjs_update_time >= '2023-03-30') t";*/
+        String indicatordatavTable = "c_in_indicatordatav_copy1";/*"(select * from c_in_indicatordatav where zjs_update_time >= '2023-03-30') t";*/
         String indicatormainTable = "c_in_indicatormain";
         String systemconstTable = "c_in_systemconst";
         String dictionaryTable = "c_in_dictionary";
@@ -91,7 +91,9 @@ public class ZJSUnifiedData {
                 .option("dbtable", table)
                 .option("user", user)
                 .option("password", password)
-                .load().toDF();
+                .option("connectTimeout", "10000") // 10 seconds
+                .option("socketTimeout", "60000") // 60 seconds
+                .load();
     }
     private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password,String table) {
         dataFrame.repartition(10).write()

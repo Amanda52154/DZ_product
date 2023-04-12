@@ -37,26 +37,24 @@ public class JC_Price_Up {
         String tidbUser = prop.getProperty("tidb.user");
         String tidbPassword = prop.getProperty("tidb.password");
 
-        List<String> DateList = Arrays.asList(
+        /*List<String> DateList = Arrays.asList(
                 "2023-04-03",
                 "2023-03-31"
-        );
-
-        String indexTable = "st_spzs_index";
-        String dataTable = "(select * from st_spzs_data where measureName in('price', 'hightestPrice', 'DV1') and pubDate between '2023-03-01' and '2023-03-30')t";
-        String treeTable = "st_spzs_tree";
-        String priceUpDownTable = "price_up_down";
-
+        );*/
         SparkSession sparkSession = SparkSession.builder()
                 .appName("JLCDataUnifiedFormat")
                 .master("local[*]")
                 .config("spark.driver.memory", "4g")
                 .config("spark.executor.memory", "4g")
                 .getOrCreate();
+
+        String indexTable =  "(select * from st_spzs_index  where  IndicatorCode in ('LWG3130005585LWG','JC2130002976JC','DD1340163828DD')) t1"; //  '58257969e80c2431e8e5d3da' /线螺  '1340163828' /大豆  '57c8f3cce80c19cd2f334c88' 甲醇
+        String dataTable = "(select * from st_spzs_data where measureName in ('DV1','hightestPrice','price'))t";  //and pubDate <= '2023-03-30'
+        String priceUpDownTable = "price_up_down";
+
         //      get tmpView
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, dataTable).createOrReplaceTempView("data");
-        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
         //      Process Price_up_table data
         Dataset<Row> price_upDF = sparkSession.sql(getSql());
         price_upDF.show();
@@ -86,10 +84,6 @@ public class JC_Price_Up {
                 "           unified,\n" +
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
-                "where IndicatorCode in ('LWG3130005585LWG','JC2130002976JC','DD1340163828DD')\n" +
-//                "where IndicatorCode ='58257969e80c2431e8e5d3da'\n" +//线螺
-//                "where IndicatorCode ='1340163828'\n" +//大豆
-//                "where IndicatorCode ='57c8f3cce80c19cd2f334c88'\n" +//甲醇
                 "),\n" +
                 "tmp AS (\n" +
                 "    SELECT IndicatorCode,\n" +
@@ -127,7 +121,7 @@ public class JC_Price_Up {
                 "       pubDate                                         as to_date,\n" +
                 "       unified                                         as unit,\n" +
                 "       product                                         as product\n" +
-                "from tmp1 where row_num = 1 and pubDate = '2023-03-30'";//
+                "from tmp1 where row_num = 1 ";
     }
     //  write to Tidb
     private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password, String table) {

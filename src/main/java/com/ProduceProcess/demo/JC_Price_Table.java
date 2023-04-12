@@ -37,13 +37,6 @@ public class JC_Price_Table {
         String tidbUser = prop.getProperty("tidb.user");
         String tidbPassword = prop.getProperty("tidb.password");
 
-
-        String indexTable = "st_spzs_index";
-        String dataTable = "(select * from st_spzs_data where measureName in ('DV1','hightestPrice','price') and pubDate between '2023-01-01' and '2023-03-30')t";
-        String treeTable = "st_spzs_tree";
-        String priceTable = "price_data";
-
-
         SparkSession sparkSession = SparkSession.builder()
                 .appName("JLCDataUnifiedFormat")
                 .master("local[*]")
@@ -51,14 +44,19 @@ public class JC_Price_Table {
                 .config("spark.executor.memory", "8g")
                 .getOrCreate();
 
-        //      get tmpView
+        String indexTable = "(select * from st_spzs_index  where  IndicatorCode in " +
+                "(select b.treeID from(select treeid from st_spzs_tree where treeID in " +
+                "('JC2130002151JC','LWG3130008504LWG', 'DD100000002DD')) a join st_spzs_tree" +
+                " b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item')) t1";   //线螺:566a4557dc484579c754xl53  //甲醇:576286732d09ed469c19faa9 //大豆:100000002*/
+        String dataTable = "(select * from st_spzs_data where  measureName in ('DV1','hightestPrice','price'))t";  //pubDate between '2023-01-01' and '2023-03-30'
+        String priceTable = "price_data";
+
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, dataTable).createOrReplaceTempView("data");
-        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
 
         Dataset<Row> priceDF = sparkSession.sql(getSql());
         priceDF.show();
-        writeToTiDB(priceDF, tidbUrl_product, tidbUser, tidbPassword, priceTable);
+//        writeToTiDB(priceDF, tidbUrl_product, tidbUser, tidbPassword, priceTable);
         sparkSession.stop();
     }
 
@@ -85,9 +83,7 @@ public class JC_Price_Table {
                 "          if(unified ='元', '元/吨', unified) as unified,\n" +
                 "           from_json(content, '" + jsonSchema + "') AS parsedContent\n" +
                 "    FROM index " +
-                 //线螺:566a4557dc484579c754xl53  //甲醇:576286732d09ed469c19faa9 //大豆:100000002*/
-                "where IndicatorCode in (select b.treeID from(select treeid from tree where treeID in ('JC2130002151JC','LWG3130008504LWG', 'DD100000002DD')) a join tree b on b.pathId like concat('%',a.treeid, '%'))),\n" +
-                "tmp AS (\n" +
+                "),\n tmp AS (\n" +
                 "    SELECT IndicatorCode,\n" +
                 "           IndicatorName,\n" +
                 "           unified,\n" +
@@ -131,7 +127,7 @@ public class JC_Price_Table {
                 "       unified                                                  as unit,\n" +
                 "       pubDate                                                  as `Date`,\n" +
                 "       product                                                  as product\n" +
-                "from tmp1 where row_num = 1 and pubDate ='2023-03-30' order by pubDate";
+                "from tmp1 where row_num = 1 order by pubDate"; //and pubDate ='2023-03-30'
     }
 
     //  write to Tidb
