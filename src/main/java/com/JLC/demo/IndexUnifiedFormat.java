@@ -1,16 +1,9 @@
 package com.JLC.demo;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SaveMode;
-import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.types.*;
 
+import org.apache.spark.sql.SparkSession;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
+
 
 import static org.apache.spark.sql.functions.*;
 
@@ -22,67 +15,25 @@ import static org.apache.spark.sql.functions.*;
  * @description : Process index unified
  * @date : 2023/3/30 2:27 PM
  */
-public class IndexUnifiedFormat {
-    public static void main(String[] args) throws IOException {
-        Logger.getLogger("org").setLevel(Level.ERROR);
-        Logger logger = Logger.getLogger("SpzsIndex");
-        logger.setLevel(Level.ERROR);
-        //      read from configuration file, get configuration
-        Properties prop = new Properties();
-        InputStream inputStream = JLCAllData2Tidb.class.getClassLoader().getResourceAsStream("application.properties");
-        prop.load(inputStream);
+public class IndexUnifiedFormat extends ApiHelper {
+    public IndexUnifiedFormat(String apiUrl) {
+        super(apiUrl);
+    }
 
-        String tidbUrl = prop.getProperty("tidb.url_warehouse");
-        String tidbUser = prop.getProperty("tidb.user");
-        String tidbPassword = prop.getProperty("tidb.password");
+    public static void main(String[] args) throws IOException {
+
+        String appName = "IndexUnifiedFormat";
+        SparkSession sparkSession = defaultSparkSession(appName);
 
         String indexTable = "jlc_index";
         String sinkTable = "st_jlc_index";
-        SparkSession sparkSession = SparkSession.builder()
-                .appName("IndexUnifiedFormat")
-                .master("local[*]")
-                .getOrCreate();
 
-        getDF(sparkSession, tidbUrl, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
+        getDF(sparkSession, indexTable).createOrReplaceTempView("index");
 
-        getTmpView(sparkSession);
-        String getTmptable = "select i.id as IndicatorCode,\n" +
-                "       i.name as IndicatorName,\n" +
-                "        i.toDate as endDate,\n" +
-                "       i.updField as measureFiled,\n" +
-                "       i.attr as content,\n" +
-                "       i.subCode as source,\n" +
-                "       case\n" +
-                "           when i.updFreq = 'HALF' then 'HALF MONTH'\n" +
-                "           else i.updFreq\n" +
-                "        end as upd_freq,\n" +
-                "       case\n" +
-                "           when u.unified like \"%,%\" then REPLACE(u.unified, ',', '/')\n" +
-                "           when u.unified like \"_,\" then REPLACE(u.unified, ',', '')\n" +
-                "           else u.unified\n" +
-                "           end as unified\n" +
-                "from index i\n" +
-                "         left join Unit u on i.id = u.id ";
-        Dataset<Row> indexDF = sparkSession.sql(getTmptable);
-        if (indexDF != null) {
-            indexDF.show();
-            writeToTiDB(indexDF, tidbUrl, tidbUser, tidbPassword, sinkTable);
-        }
+        writeToTiDB(sparkSession.sql(getSql()), sinkTable);
         sparkSession.stop();
     }
-
-    private static Dataset<Row> getDF(SparkSession sparkSession, String url, String user, String password, String table) {
-        return sparkSession.read()
-                .format("jdbc")
-                .option("url", url)
-                .option("driver", "com.mysql.jdbc.Driver")
-                .option("dbtable", table)
-                .option("user", user)
-                .option("password", password)
-                .load().toDF();
-    }
-
-    private static StructType createStructType() {
+    /*private static StructType createStructType() {
         return new StructType(new StructField[]{
                 new StructField("attrField", DataTypes.StringType, true, Metadata.empty()),
                 new StructField("attrName", DataTypes.StringType, true, Metadata.empty()),
@@ -112,19 +63,26 @@ public class IndexUnifiedFormat {
         // Use the temp view to group by ID and aggregate the unified and product columns
         sparkSession.sql("SELECT ID, first(unified, true) AS unified, first(product, true) AS product FROM temp_unifiedDf GROUP BY ID").createOrReplaceTempView("Unit");
 
-    }
+    }*/
+    private static String getSql(){
+        String structSchema = "array<struct<attrField:string,attrName:string>>";
+        return  "WITH attrData AS (SELECT DISTINCT id, attr FROM index),\n" +
+                "explodedDf AS (SELECT ID, e.attrArray.attrField AS attrField, e.attrArray.attrName AS attrName\n" +
+                "FROM (SELECT ID, from_json(attr, '" + structSchema + "') as attrArray FROM attrData) t\n" +
+                "LATERAL VIEW explode(t.attrArray) e AS attrArray),\n" +
+                "unifiedDf AS (SELECT ID,\n" +
+                "first(CASE WHEN lower(attrField) LIKE '%unit%' THEN attrName END, true) AS unified,\n" +
+                "first(CASE WHEN lower(attrField) LIKE '%product%' THEN attrName END, true) AS product\n" +
+                "FROM explodedDf\n" +
+                "GROUP BY ID)\n" +
+                "SELECT i.id AS IndicatorCode, i.name AS IndicatorName, i.toDate AS endDate, i.updField AS measureFiled, i.attr AS content, i.subCode AS source,\n" +
+                "CASE WHEN i.updFreq = 'HALF' THEN 'HALF MONTH' ELSE i.updFreq END AS upd_freq,\n" +
+                "CASE\n" +
+                "WHEN u.unified LIKE '%,%' THEN REPLACE(u.unified, ',', '/')\n" +
+                "WHEN u.unified LIKE '%,%' THEN REPLACE(u.unified, ',', '')\n" +
+                "ELSE u.unified\n" +
+                "END AS unified\n" +
+                "FROM index i LEFT JOIN (SELECT ID, unified FROM unifiedDf) u ON i.id = u.ID";
 
-    private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password, String table) {
-        dataFrame.repartition(10).write()
-                .mode(SaveMode.Append)
-                .format("jdbc")
-                .option("driver", "com.mysql.jdbc.Driver")
-                .option("url", url)
-                .option("user", user)
-                .option("password", password)
-                .option("dbtable", table)
-                .option("isolationLevel", "NONE")    //不开启事务
-                .option("batchsize", 10000)   //设置批量插入
-                .save();
     }
 }

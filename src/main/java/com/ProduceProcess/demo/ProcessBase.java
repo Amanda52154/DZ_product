@@ -1,6 +1,6 @@
-package com.JLC.demo;
+package com.ProduceProcess.demo;
 
-import okhttp3.*;
+import com.JLC.demo.JLCAllData2Tidb;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.spark.sql.Dataset;
@@ -13,19 +13,20 @@ import java.io.InputStream;
 import java.util.Properties;
 
 /**
- * DzProduce   com.JLC.demo
- * 2023-03-2023/3/27   11:03
+ * DZ_product   com.ProduceProcess.demo
+ * 2023-04-2023/4/15   10:33
  *
  * @author : zhangmingyue
- * @description : API请求、JSON解析
- * @date : 2023/3/27 11:03 AM
+ * @description :
+ * @date : 2023/4/15 10:33 AM
  */
-public class ApiHelper {
-    private final String apiUrl;
+public class ProcessBase {
+//    private static String appName = "";
+//
+//    public ProcessBase(String appName) {
+//        ProcessBase.appName = appName;
+//    }
 
-    public ApiHelper(String apiUrl) {
-        this.apiUrl = apiUrl;
-}
     public  static SparkSession defaultSparkSession(String appName) throws IOException {
         /*
     创建SparkSession对象
@@ -59,16 +60,8 @@ public class ApiHelper {
         return new String[]{tidbUrl_warehouse, tidbUser, tidbPassword, tidbUrl_product, tidbUser_p, tidbPassword_p};
     }
 
-
-    public String fetchData(String idPath, String categorys) throws IOException {
-        String jsonBody = createJsonBody(idPath, categorys);
-        return  sendPostRequest(apiUrl, jsonBody);
-    }
-    public String fetchData01(String jsonBody) throws IOException {
-        return  sendPostRequest(apiUrl, jsonBody);
-    }
-
-    protected static Dataset<Row> getDF(SparkSession sparkSession, String table) throws IOException {
+    //      Get tableView function
+    static Dataset<Row> getDF(SparkSession sparkSession, String table) throws IOException {
         String[] result = getUrl();
         return sparkSession.read()
                 .format("jdbc")
@@ -81,47 +74,19 @@ public class ApiHelper {
     }
 
     //  write to Tidb
-    protected static void writeToTiDB(Dataset<Row> dataFrame, String table) throws IOException {
+    static void writeToTiDB(Dataset<Row> dataFrame, String table) throws IOException {
         String[] result = getUrl();
         dataFrame.repartition(10).write()
                 .mode(SaveMode.Append)
                 .format("jdbc")
                 .option("driver", "com.mysql.jdbc.Driver")
-                .option("url", result[0])
-                .option("user", result[1])
-                .option("password", result[2])
+                .option("url", result[3])
+                .option("user", result[4])
+                .option("password", result[5])
                 .option("dbtable", table)
                 .option("isolationLevel", "NONE")    //不开启事务
                 .option("batchsize", 10000)   //设置批量插入
                 .save();
     }
 
-//    Get jsonbody
-    private String createJsonBody(String idPath, String categorys) {
-        return String.format("{" +
-                "\"categorys\": \"%s\"," +
-                "\"idPath\": \"%s\"," +
-                "\"isPaging\": 1," +
-                "\"pageNum\": 1," +
-                "\"pageSize\": 1000," +
-                "\"subCode\": \"SP,SO,SI,SA,SR,SC,JC,CB,ST,ZJ\"," +
-                "\"queryColumns\": \"id,subCode,name,pId,subCode,updFreq,updField,fromDate,toDate,attr,category,namePath,idPath\"" +
-                "}", categorys, idPath);
-    }
-// Request API get data
-    private String sendPostRequest(String url,String jsonBody) throws IOException {
-        OkHttpClient client = new OkHttpClient();
-        RequestBody requestBody = RequestBody.create(jsonBody, MediaType.parse("application/json; charset=utf-8"));
-        Request request = new Request.Builder()
-                .url(url)
-                .post(requestBody)
-                .addHeader("Content-Type", "application/json")
-                .build();
-        Response response = client.newCall(request).execute();
-
-        if (response.body() != null) {
-            return response.body().string();
-        }
-        return null;
-    }
 }

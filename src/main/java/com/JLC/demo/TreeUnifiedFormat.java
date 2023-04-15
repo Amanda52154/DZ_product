@@ -1,16 +1,8 @@
 package com.JLC.demo;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SaveMode;
+
 import org.apache.spark.sql.SparkSession;
-
-
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
 
 
 /**
@@ -21,34 +13,27 @@ import java.util.Properties;
  * @description : JLC treeData process
  * @date : 2023/3/30 2:28 PM
  */
-public class TreeUnifiedFormat {
-    public static void main(String[] args) throws IOException {
-        Logger.getLogger("org").setLevel(Level.ERROR);
-        Logger logger = Logger.getLogger("SpzsIndex");
-        logger.setLevel(Level.ERROR);
-        //      read from configuration file, get configuration
-        Properties prop = new Properties();
-        InputStream inputStream = JLCAllData2Tidb.class.getClassLoader().getResourceAsStream("application.properties");
-        prop.load(inputStream);
+public class TreeUnifiedFormat extends ApiHelper {
+    public TreeUnifiedFormat(String apiUrl) {
+        super(apiUrl);
+    }
 
-        String tidbUrl = prop.getProperty("tidb.url_warehouse");
-        String tidbUser = prop.getProperty("tidb.user");
-        String tidbPassword = prop.getProperty("tidb.password");
+    public static void main(String[] args) throws IOException {
+        String appName = "TreeUnifiedFormat";
+        SparkSession sparkSession = defaultSparkSession(appName);
 
         String indexTable = "jlc_index";
         String treeTable = "jlc_tree";
         String sinkTable = "st_jlc_tree";
 
-        SparkSession sparkSession = SparkSession.builder()
-                .appName("TreeUnifiedFormat")
-                .master("local[*]")
-                .getOrCreate();
+        getDF(sparkSession, indexTable).createOrReplaceTempView("index");
+        getDF(sparkSession, treeTable).createOrReplaceTempView("tree");
 
-        getDF(sparkSession, tidbUrl, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
-        getDF(sparkSession, tidbUrl, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
-
-
-        String treeChange = "select\n" +
+        writeToTiDB(sparkSession.sql(getSql()), sinkTable);
+        sparkSession.stop();
+    }
+    private static String getSql(){
+        return "select\n" +
                 "t.id as treeID,\n" +
                 "t.pId as PID,\n" +
                 "t.name as NodeName,\n" +
@@ -61,37 +46,5 @@ public class TreeUnifiedFormat {
                 "t.category as category,\n" +
                 "i.toDate as to_date\n" +
                 "from tree t left join index i on t.id = i.id";
-        Dataset<Row> treeDF = sparkSession.sql(treeChange);
-
-        if (treeDF != null) {
-            treeDF.show();
-//            writeToTiDB(treeDF, tidbUrl, tidbUser, tidbPassword, sinkTable);
-        }
-        sparkSession.stop();
-    }
-
-    private static Dataset<Row> getDF(SparkSession sparkSession, String url, String user, String password, String table) {
-        return sparkSession.read()
-                .format("jdbc")
-                .option("url", url)
-                .option("driver", "com.mysql.jdbc.Driver")
-                .option("dbtable", table)
-                .option("user", user)
-                .option("password", password)
-                .load().toDF();
-    }
-
-    private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password, String table) {
-        dataFrame.repartition(10).write()
-                .mode(SaveMode.Append)
-                .format("jdbc")
-                .option("driver", "com.mysql.jdbc.Driver")
-                .option("url", url)
-                .option("user", user)
-                .option("password", password)
-                .option("dbtable", table)
-                .option("isolationLevel", "NONE")    //不开启事务
-                .option("batchsize", 10000)   //设置批量插入
-                .save();
     }
 }

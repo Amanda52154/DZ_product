@@ -11,6 +11,7 @@ import org.apache.spark.sql.SparkSession;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import static org.apache.spark.sql.functions.*;
 
 /**
  * DZ_product   com.ProduceProcess.demo
@@ -20,11 +21,9 @@ import java.util.Properties;
  * @description : Process Down_Consumer table
  * @date : 2023/4/2 11:31 AM
  */
-public class Data2CS {
+public class Data2CS  extends ProcessBase{
     public static void main(String[] args) throws IOException {
-        Logger.getLogger("org").setLevel(Level.ERROR);
-        Logger logger = Logger.getLogger("SpzsIndex");
-        logger.setLevel(Level.ERROR);
+
         //   read from configuration file, get configuration
         Properties prop = new Properties();
         InputStream inputStream = JLCAllData2Tidb.class.getClassLoader().getResourceAsStream("application.properties");
@@ -39,31 +38,20 @@ public class Data2CS {
         String tidbUser_p = prop.getProperty("tidb.user_product");
         String tidbPassword_p = prop.getProperty("tidb.password_product");
 
-        /*String indexTable = "st_spzs_index";
-        String dataTable = "st_spzs_data";
-        String treeTable = "st_spzs_tree";
+        String appName = "Data2CS";
+        SparkSession sparkSession = defaultSparkSession(appName);
 
-        String sinkTable_data = "st_spzs_data";
-        String sinkTable_tree = "st_spzs_tree";
-        String sinkTable_index = "st_spzs_index";*/
+        String resultTable = "( select id, category_id,grade_id,region_id,position_id,task_time \n" +
+                "         ,measurefield,measureUnit,measureValue\n" +
+                "         from spzs_atom) t";
+        String adjustmentTable = "(SELECT " +
+                "                 case when unified_number = '0' then concat('dazao',cast(unified_number as CHAR), exponent_id, 'root') " +
+                "                     else cast(unified_number as CHAR) end as IndicatorCode," +
+                "                    category_id,grade_id,region_id,position_id" +
+                "                    FROM compile_unified_adjustment ) t ";//where category_id is not null and grade_id is not null and region_id is not null and position_id is not null
 
-        String priceTable = "price_data";
-        String riseTable = "price_rise_fall";
-        String upTable = "price_up_down";
-        String downTable = "down_consumer";
-
-        String priceTable1 = "price_data";
-        String riseTable1 = "price_rise_fall";
-        String upTable1 = "price_up_down";
-        String downTable1 = "down_consumer";
-
-
-        SparkSession sparkSession = SparkSession.builder()
-                .appName("JLCDataUnifiedFormat")
-                .master("local[*]")
-                .config("spark.driver.memory", "4g")
-                .config("spark.executor.memory", "8g")
-                .getOrCreate();
+        String mainTable = "c_in_indicatormain";
+        String datavTable1 = "st_spzs_data_hz";
 
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, dataTable).createOrReplaceTempView("data");
@@ -72,13 +60,13 @@ public class Data2CS {
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, riseTable).createOrReplaceTempView("rise");
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, upTable).createOrReplaceTempView("up");
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, downTable).createOrReplaceTempView("down");
-
-        getDF(sparkSession, tidbUrl_product, tidbUser_p, tidbPassword_p, upTable).createOrReplaceTempView("up");
+        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, resultTable).createOrReplaceTempView("result");
+        getDF(sparkSession, tidbUrl_product, tidbUser, tidbPassword, adjustmentTable).createOrReplaceTempView("adjustment");
 
         //  Process Price_up_table data
         Dataset<Row> price_upDF = sparkSession.sql(getSql());
-        price_upDF.show();
-        writeToTiDB(price_upDF, tidbUrl_warehouse, tidbUser, tidbPassword, upTable1);
+//        price_upDF.show();
+        writeToTiDB(price_upDF, tidbUrl_warehouse, tidbUser, tidbPassword, datavTable1);
         sparkSession.stop();
     }
 
@@ -95,11 +83,26 @@ public class Data2CS {
     }
 
     //  Return SQL query statement
-    private static String getSql(){
+    private static String getSql() {
 
-        return "select * from up where id >= '60031' ";
+        return "select  \n" +
+                        " adj.IndicatorCode              as   IndicatorCode,\n" +
+                        " DATE_TRUNC('day', result.task_time)     as   pubDate,\n" +
+                        " result.measurefield               as   measureName,\n" +
+                        " result.measureValue               as   measureValue from result  join  adjustment  adj on  adj.category_id = result.category_id and adj.grade_id = result.grade_id and adj.region_id = result.region_id and adj.position_id = result.position_id order by measureValue desc";
+ /* "select adj.id                  as   id," +
+                " adj.unified_number             as   IndicatorCode," +
+                "adj.name                        as   IndicatorName," +
+                "                                as   EndDate," +
+                "          as   measureFiled ," +
+                "info.detail_json                as   content," +
+                "                  as   source," +
+                "info.task_type                  as   upd_freq," +
+                "info.update_time                as   unified  ," +
+                "                                as   IndicatorCode_tmp  from info  join adjustment  adj on  info.id = adj.exponent_id ";*/
 
     }
+
     //  write to Tidb
     private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password, String table) {
         dataFrame.repartition(10).write()

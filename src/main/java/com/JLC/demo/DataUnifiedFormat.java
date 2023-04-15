@@ -1,16 +1,8 @@
 package com.JLC.demo;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
-
-
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
+
 
 /**
  * DzProduce   com.JLC.demo
@@ -20,31 +12,25 @@ import java.util.Properties;
  * @description : Process data unified
  * @date : 2023/3/30 2:28 PM
  */
-public class DataUnifiedFormat {
-    public static void main(String[] args) throws IOException {
-        Logger.getLogger("org").setLevel(Level.ERROR);
-        Logger logger = Logger.getLogger("SpzsIndex");
-        logger.setLevel(Level.ERROR);
-        //      read from configuration file, get configuration
-        Properties prop = new Properties();
-        InputStream inputStream = JLCAllData2Tidb.class.getClassLoader().getResourceAsStream("application.properties");
-        prop.load(inputStream);
+public class DataUnifiedFormat extends ApiHelper {
+    public DataUnifiedFormat(String apiUrl) {
+        super(apiUrl);
+    }
 
-        String tidbUrl = prop.getProperty("tidb.url_warehouse");
-        String tidbUser = prop.getProperty("tidb.user");
-        String tidbPassword = prop.getProperty("tidb.password");
+    public static void main(String[] args) throws IOException {
+        String appName = "DataUnifiedFormat";
+        SparkSession sparkSession = defaultSparkSession(appName);
 
         String dataTable = "jlc_data"; /*"(select * from jlc_data where publishDt between '2023-04-01' and '2023-04-11' and 1=1) t";*/
         String sinkTable = "st_jlc_data";
 
-        SparkSession sparkSession = SparkSession.builder()
-                .appName("DataUnifiedFormat")
-                .master("local[*]")
-                .getOrCreate();
+        getDF(sparkSession, dataTable).createOrReplaceTempView("data");
 
-        getDF(sparkSession, tidbUrl, tidbUser, tidbPassword, dataTable).createOrReplaceTempView("data");
-
-        String dataChange = "select\n" +
+        writeToTiDB(sparkSession.sql(getSql()), sinkTable);
+        sparkSession.stop();
+    }
+    private static String getSql(){
+        return "select\n" +
                 "idxId as IndicatorCode,\n" +
                 "publishDt as pubDate,\n" +
                 "valueName as measureName,\n" +
@@ -52,38 +38,5 @@ public class DataUnifiedFormat {
                 "current_timestamp() as updateDate,\n" +
                 "current_timestamp() as insertDate\n" +
                 "from data  ";
-        Dataset<Row> dataDF = sparkSession.sql(dataChange);
-
-        if (dataDF != null) {
-//            dataDF.show();
-            writeToTiDB(dataDF, tidbUrl, tidbUser, tidbPassword, sinkTable);
-        }
-        sparkSession.stop();
-    }
-
-    private static Dataset<Row> getDF(SparkSession sparkSession, String url, String user, String password, String table) {
-        return sparkSession.read()
-                .format("jdbc")
-                .option("url", url)
-                .option("driver", "com.mysql.jdbc.Driver")
-                .option("dbtable", table )
-                .option("user", user)
-                .option("password", password)
-                .load();
-    }
-
-
-    private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password, String table) {
-        dataFrame.repartition(10).write()
-                .mode(SaveMode.Append)
-                .format("jdbc")
-                .option("driver", "com.mysql.jdbc.Driver")
-                .option("url", url)
-                .option("user", user)
-                .option("password", password)
-                .option("dbtable", table)
-                .option("isolationLevel", "NONE")    //不开启事务
-                .option("batchsize", 10000)   //设置批量插入
-                .save();
     }
 }
