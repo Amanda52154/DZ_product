@@ -40,9 +40,14 @@ public class Data2Product {
         String tidbUser_p = prop.getProperty("tidb.user_product");
         String tidbPassword_p = prop.getProperty("tidb.password_product");
 
-        String indexTable = "st_spzs_index";
-        String dataTable = "(SELECT * FROM st_spzs_data WHERE IndicatorCode LIKE '%DD%' ) t";
-        String treeTable = "st_spzs_tree";
+        String indexTable = "(select * from st_spzs_index where  IndicatorCode LIKE '%YY%' or IndicatorCode LIKE '%RLY%' or IndicatorCode LIKE '%XJ%')t ";
+        String dataTable = "(SELECT IndicatorCode,\n" +
+                "pubDate,\n" +
+                "measureName,\n" +
+                "measureValue,\n" +
+                "updateDate,\n" +
+                "insertDate FROM st_spzs_data WHERE IndicatorCode LIKE '%JC%' and pubDate > '2022-01-01'  ) t";
+        String treeTable = "(select * from st_spzs_tree where  treeId LIKE '%MH%' or treeId LIKE '%PG%')t  ";
 
         String sinkTable_data = "st_spzs_data";
         String sinkTable_tree = "st_spzs_tree";
@@ -52,26 +57,12 @@ public class Data2Product {
         String riseTable = "price_rise_fall";
         String upTable = "price_up_down";
         String downTable = "down_consumer";
-        String demandTable = "demand_and_supply";
-        String magnitude_areaTable = "magnitude_area";
-        String magnitude_core_dataTable = "magnitude_core_data";
-        String magnitude_trendTable = "magnitude_trend";
-        String st_magnitude_areaTable = "st_magnitude_area";
-        String subitem_costTable = "subitem_cost";
-        String supply_demand_balanceTable = "supply_demand_balance";
+
 
         String priceTable1 = "price_data";
         String riseTable1 = "price_rise_fall";
         String upTable1 = "price_up_down";
-        String downTable1 = "down_consumer";
-
-        String demandTable1 = "demand_and_supply";
-        String magnitude_areaTable1 = "magnitude_area";
-        String magnitude_core_dataTable1 = "magnitude_core_data";
-        String magnitude_trendTable1 = "magnitude_trend";
-        String st_magnitude_areaTable1 = "st_magnitude_area";
-        String subitem_costTable1 = "subitem_cost";
-        String supply_demand_balanceTable1 = "supply_demand_balance";*/
+        String downTable1 = "down_consumer";*/
        /* String datav_jy = "c_in_indicatordatav";  "(SELECT * FROM c_in_indicatordatav WHERE zjs_update_time >= '2023-03-30' AND 1=1) t";
         String datav_cs = "c_in_indicatordatav";
         String index_cs = "st_c_in_indicatormain";*/
@@ -79,7 +70,7 @@ public class Data2Product {
         SparkSession sparkSession = defaultSparkSession(appName);
 
 
-//          getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
+        //  getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
         //  getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, dataTable).createOrReplaceTempView("data");
         //  getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
 
@@ -91,20 +82,13 @@ public class Data2Product {
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, riseTable).createOrReplaceTempView("rise");
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, upTable).createOrReplaceTempView("up");
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, downTable).createOrReplaceTempView("down");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, demandTable).createOrReplaceTempView("demandTable");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, magnitude_areaTable).createOrReplaceTempView("magnitude_areaTable");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, magnitude_core_dataTable).createOrReplaceTempView("magnitude_core_dataTable");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, magnitude_trendTable).createOrReplaceTempView("magnitude_trendTable");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, st_magnitude_areaTable).createOrReplaceTempView("st_magnitude_areaTable");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, subitem_costTable).createOrReplaceTempView("subitem_costTable");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, supply_demand_balanceTable).createOrReplaceTempView("supply_demand_balanceTable");
 
         //  Process Price_up_table data
 //        Dataset<Row> price_upDF = sparkSession.sql(getSql());
 
-        Dataset<Row> price_upDF = getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable);
+        Dataset<Row> price_upDF = getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable);
         price_upDF.show();
-//        writeToTiDB(price_upDF, tidbUrl_product, tidbUser_p, tidbPassword_p, sinkTable_index);
+        writeToTiDB(price_upDF, tidbUrl_product, tidbUser_p, tidbPassword_p, sinkTable_tree);
 //        writeToTiDB(price_upDF, tidbUrl_product, tidbUser_p, tidbPassword_p, upTable1);
 //        writeToTiDB(price_upDF, tidbUrl_warehouse, tidbUser, tidbPassword, datav_cs);
         sparkSession.stop();
@@ -159,7 +143,6 @@ public class Data2Product {
         <'2015'    and year(pubDate) >'2019'
                 " select * from tree";
         "select * from index";  year(pubDate) between '2015' and '2019'*/  // 测试库Data表 -> 生产库
-
     }
 
     //  write to Tidb
@@ -173,7 +156,7 @@ public class Data2Product {
                 .option("password", password)
                 .option("dbtable", table)
                 .option("isolationLevel", "NONE")    //不开启事务
-                .option("batchsize", 10000)   //设置批量插入
+                .option("batchsize", 5000)   //设置批量插入
                 .save();
     }
 }

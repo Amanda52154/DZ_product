@@ -92,7 +92,8 @@ public class ApiHelper {
                 .option("password", result[2])
                 .option("dbtable", table)
                 .option("isolationLevel", "NONE")    //不开启事务
-                .option("batchsize", 10000)   //设置批量插入
+                .option("rewriteBatchedStatements", "true")
+                .option("batchsize", 5000)   //设置批量插入
                 .save();
     }
 

@@ -1,6 +1,8 @@
 package com.JLC.demo;
 
 
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import java.io.IOException;
 
@@ -30,8 +32,9 @@ public class IndexUnifiedFormat extends ApiHelper {
 
         getDF(sparkSession, indexTable).createOrReplaceTempView("index");
 
+//         sparkSession.sql(getSql()).show();
         writeToTiDB(sparkSession.sql(getSql()), sinkTable);
-        sparkSession.stop();
+                sparkSession.stop();
     }
     /*private static StructType createStructType() {
         return new StructType(new StructField[]{
@@ -82,7 +85,8 @@ public class IndexUnifiedFormat extends ApiHelper {
                 "WHEN u.unified LIKE '%,%' THEN REPLACE(u.unified, ',', '')\n" +
                 "ELSE u.unified\n" +
                 "END AS unified\n" +
-                "FROM index i LEFT JOIN (SELECT ID, unified FROM unifiedDf) u ON i.id = u.ID";
+                "FROM index i LEFT JOIN (SELECT ID, unified FROM unifiedDf ) u ON i.id = u.ID" ;
+//                " where i.namePath not like '%线螺%' and i.namePath not like '%甲醇%'";
 
     }
 }

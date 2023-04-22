@@ -19,18 +19,19 @@ public class Price_rise_Process extends ProcessBase {
         String appName = "Process_Rise_Table";
         SparkSession sparkSession = defaultSparkSession(appName);
 
-        String indexTable = "(select * from st_spzs_index  where  IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in ('LWG3130008562LWG','JC2130002975JC','DD100000003DD')) a join st_spzs_tree b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item')) t1"; //线螺:58256e0ce80c2431e8e5a107 //甲醇:57c8f3cce80c19cd2f334c82 //大豆:100000003*/
-        String dataTable = "(select * from st_spzs_data where measureName in ('DV1','hightestPrice','price') )t"; // and pubDate between '2022-01-01' and '2023-03-30'
+        String indexTable = "(select * from st_spzs_index  where  IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in ('XJ5130010126XJ','YY4130100160YY','RLY6130100900RLY')) a join st_spzs_tree b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item')) t1";
+        //线螺:LWG3130008562LWG //甲醇:JC2130002975JC //大豆:DD100000003DD // 橡胶:XJ5130010126XJ // 原油:YY4130100160YY // 燃料油:RLY6130100900RLY
+        String dataTable = "(select * from st_spzs_data where  IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in ('XJ5130010126XJ','YY4130100160YY','RLY6130100900RLY')) a join st_spzs_tree b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item') and measureName = 'price' )t"; // and pubDate between '2022-01-01' and '2023-03-30' //'DV1','hightestPrice',
         String priceRiseFallTable = "price_rise_fall";
 
-        //      get tmpView
+        //get tmpView
         getDF(sparkSession, indexTable).createOrReplaceTempView("index");
         getDF(sparkSession, dataTable).createOrReplaceTempView("data");
         getTmpView(sparkSession);
 
         Dataset<Row> price_riseDF = sparkSession.sql(getSql());
         price_riseDF.show();
-//        writeToTiDB(price_riseDF, priceRiseFallTable);
+        writeToTiDB(price_riseDF, priceRiseFallTable);
         sparkSession.stop();
     }
 

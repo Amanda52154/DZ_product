@@ -19,8 +19,9 @@ public class Price_Up_Process extends ProcessBase {
         SparkSession sparkSession = defaultSparkSession(appName);
 
 
-        String indexTable = "(select * from st_spzs_index  where  IndicatorCode in ('LWG3130005585LWG','JC2130002976JC','DD1340163828DD')) t1"; //  '58257969e80c2431e8e5d3da' /线螺  '1340163828' /大豆  '57c8f3cce80c19cd2f334c88' 甲醇
-        String dataTable = "(select * from st_spzs_data where measureName in ('DV1','hightestPrice','price'))t";  //and pubDate <= '2023-03-30'
+        String indexTable = "(select * from st_spzs_index where IndicatorCode in ('RLY6130100646RLY','YY4130100162YY','XJ5130010138XJ')) t1";
+        //线螺:'LWG3130005585LWG' / 大豆 : 'DD1340163828DD' / 甲醇'JC2130002976JC' / 燃料油:RLY6130100646RLY  原油:YY4130100162YY  橡胶:XJ5130010138XJ
+        String dataTable = "(select * from st_spzs_data where  IndicatorCode in ('RLY6130100646RLY','YY4130100162YY','XJ5130010138XJ') and measureName = 'price' and pubDate <= '2023-03-31'  )t";  //and pubDate <= '2023-03-30'  in ('DV1','hightestPrice','price')
         String priceUpDownTable = "price_up_down";
 
         //      get tmpView
@@ -29,7 +30,7 @@ public class Price_Up_Process extends ProcessBase {
         //      Process Price_up_table data
         Dataset<Row> price_upDF = sparkSession.sql(getSql());
         price_upDF.show();
-//        writeToTiDB(price_upDF, priceUpDownTable);
+        writeToTiDB(price_upDF, priceUpDownTable);
         sparkSession.stop();
     }
 

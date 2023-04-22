@@ -21,11 +21,12 @@ public class DataUnifiedFormat extends ApiHelper {
         String appName = "DataUnifiedFormat";
         SparkSession sparkSession = defaultSparkSession(appName);
 
-        String dataTable = "jlc_data"; /*"(select * from jlc_data where publishDt between '2023-04-01' and '2023-04-11' and 1=1) t";*/
-        String sinkTable = "st_jlc_data";
+        String dataTable = "jlc_data"; /*"(select * from jlc_data where publishDt > '2022-10-01') t";*/
+        String sinkTable = "st_jlc_data_copy1";
 
         getDF(sparkSession, dataTable).createOrReplaceTempView("data");
 
+//        sparkSession.sql(getSql()).show(false);
         writeToTiDB(sparkSession.sql(getSql()), sinkTable);
         sparkSession.stop();
     }
@@ -37,6 +38,7 @@ public class DataUnifiedFormat extends ApiHelper {
                 "value as measureValue,\n" +
                 "current_timestamp() as updateDate,\n" +
                 "current_timestamp() as insertDate\n" +
-                "from data  ";
+                " from data ";
+        /*"select count(*) from data";*/
     }
 }

@@ -1,19 +1,12 @@
 package com.ZJS.demo;
 
 import com.JLC.demo.ApiHelper;
-import com.JLC.demo.JLCAllData2Tidb;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Properties;
+
 
 /**
  * DzProduce   com.ZJS.demo

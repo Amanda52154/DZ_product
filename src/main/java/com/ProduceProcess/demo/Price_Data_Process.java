@@ -20,9 +20,11 @@ public class Price_Data_Process extends ProcessBase {
 
         String indexTable = "(select * from st_spzs_index  where  IndicatorCode in " +
                 "(select b.treeID from(select treeid from st_spzs_tree where treeID in " +
-                "('JC2130002151JC','LWG3130008504LWG', 'DD100000002DD')) a join st_spzs_tree" +
-                " b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item')) t1";   //线螺:566a4557dc484579c754xl53  //甲醇:576286732d09ed469c19faa9 //大豆:100000002*/
-        String dataTable = "(select * from st_spzs_data where  measureName in ('DV1','hightestPrice','price') )t";  //pubDate between '2023-01-01' and '2023-03-30'
+                "('YY4130100148YY','XJ5130010125XJ', 'RLY6130100363RLY')) a join st_spzs_tree" +
+                " b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item')) t1";
+        //线螺:LWG3130008504LWG  //甲醇:JC2130002151JC //大豆:DD100000002DD / 橡胶:XJ5130010125XJ // 原油:YY4130100148YY //燃料油:RLY6130100363RLY
+        String dataTable = "(select * from st_spzs_data where IndicatorCode in " +
+                " (select b.treeID from(select treeid from st_spzs_tree where treeID in ('YY4130100148YY','XJ5130010125XJ', 'RLY6130100363RLY'))a join st_spzs_tree b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item')and measureName in ('price','openingPrice') )t";  //pubDate between '2023-01-01' and '2023-03-30' // 'DV1','hightestPrice',
         String priceTable = "price_data";
 
         getDF(sparkSession, indexTable).createOrReplaceTempView("index");
@@ -30,7 +32,7 @@ public class Price_Data_Process extends ProcessBase {
 
         Dataset<Row> priceDF = sparkSession.sql(getSql());
         priceDF.show();
-//        writeToTiDB(priceDF, priceTable);
+        writeToTiDB(priceDF, priceTable);
         sparkSession.stop();
     }
     //  Return SQL query statement
