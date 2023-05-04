@@ -3,6 +3,7 @@ package com.ProduceProcess.demo;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+
 import java.io.IOException;
 
 /**
@@ -19,9 +20,19 @@ public class Price_Up_Process extends ProcessBase {
         SparkSession sparkSession = defaultSparkSession(appName);
 
 
-        String indexTable = "(select * from st_spzs_index where IndicatorCode in ('RLY6130100646RLY','YY4130100162YY','XJ5130010138XJ')) t1";
+        String indexTable = "( select *" +
+                " from st_spzs_index " +
+                " where" +
+                " IndicatorCode in ('PG8130101331PG','DY9131019145DY','XM1001019556XM','SZ1010221476SZ','RZJB1010221602RZJB','HS3230000084HS','YMDF1010841721YMDF','ZLY1010841849ZLY','BT1012000006BT','TTJ1020000003TTJ','DLM1021000003DLM','JTM1022000003JTM','TKS4130000061TKS','XD1000000111XD','T1000000018T','L5120000030L','N6120000018N','BL810220101BL','BXG1011000305BXG')" +
+                ") t1";
         //线螺:'LWG3130005585LWG' / 大豆 : 'DD1340163828DD' / 甲醇'JC2130002976JC' / 燃料油:RLY6130100646RLY  原油:YY4130100162YY  橡胶:XJ5130010138XJ
-        String dataTable = "(select * from st_spzs_data where  IndicatorCode in ('RLY6130100646RLY','YY4130100162YY','XJ5130010138XJ') and measureName = 'price' and pubDate <= '2023-03-31'  )t";  //and pubDate <= '2023-03-30'  in ('DV1','hightestPrice','price')
+        //PG8130101331PG /MH8131019009MH(现货价) / DY9131019145DY / XM1001019556XM / DP1231019356DP(出厂价) / SZ1010221490SZ /RZJB1010221602RZJB /JD8135018124JD / HZ1340065521HZ / HS3230000084HS / YMDF1010841721YMDF / ZLY1010841849ZLY / YM1010961036YM / BT1012000006BT / XC3133000212XC / JM4100002023JM / BXG1011000305BXG/ ZJ2530002103ZJ无  QD2650003013QD 无数据/ TTJ1020000003TTJ / DLM1021000003DLM / JTM1022000003JTM / TKS4130000061TKS / XD1000000111XD / T1000000018T /L5120000030L /N6120000018N / BL810220101BL 水稻,纯碱没有价格
+        String dataTable = "( select * " +
+                " from st_spzs_data" +
+                " where " +
+                " IndicatorCode in ('PG8130101331PG','DY9131019145DY','XM1001019556XM','SZ1010221476SZ','RZJB1010221602RZJB','HS3230000084HS','YMDF1010841721YMDF','ZLY1010841849ZLY','BT1012000006BT','TTJ1020000003TTJ','DLM1021000003DLM','JTM1022000003JTM','TKS4130000061TKS','XD1000000111XD','T1000000018T','L5120000030L','N6120000018N','BL810220101BL','BXG1011000305BXG')" +
+//                " and measureName in ('DV1','hightestPrice','price')" +
+                ")t";  //and pubDate <= '2023-04-27' in ('DV1','hightestPrice','price')
         String priceUpDownTable = "price_up_down";
 
         //      get tmpView
@@ -81,6 +92,6 @@ public class Price_Up_Process extends ProcessBase {
                 "       pubDate                                         as to_date,\n" +
                 "       unified                                         as unit,\n" +
                 "       product                                         as product\n" +
-                "from tmp1 where row_num = 1 ";
+                "from tmp1 where row_num = 1 "; //and pubDate = '2023-04-20'
     }
 }

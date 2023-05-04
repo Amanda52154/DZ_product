@@ -28,16 +28,16 @@ public class ZJSUnifiedFormat extends ApiHelper {
         String appName = "ZJSUnifiedFormat";
         SparkSession sparkSession = defaultSparkSession(appName);
 
-        String indicatormainTable = "c_in_indicatormain";
+        String indicatormainTable = "c_in_indicatormain_1";/*"( select * from c_in_indicatormain where IndicatorCode not like '%DD') t"*/;
         String systemconstTable = "c_in_systemconst";
-        String sinkTable = "st_c_in_indicatormain";
+        String sinkTable = "st_c_in_indicatormain_copy1";
 
         getDF(sparkSession, indicatormainTable).createOrReplaceTempView("indicatormain");
         getDF(sparkSession, systemconstTable).createOrReplaceTempView("systemconst");
 
         Dataset<Row> tidbDF = sparkSession.sql( getSql());
         tidbDF.show();
-//        writeToTiDB(tidbDF, sinkTable);
+        writeToTiDB(tidbDF, sinkTable);
         sparkSession.stop();
 
     }
@@ -68,7 +68,8 @@ public class ZJSUnifiedFormat extends ApiHelper {
                 "       UpdateTime,\n" +
                 "       JSID,\n" +
                 "       zjs_insert_time,\n" +
-                "       zjs_update_time\n" +
+                "       zjs_update_time,\n" +
+                "       current_timestamp() as pt\n" +
                 "from\n" +
                 "(select ID,\n" +
                 "       IndicatorCode,\n" +

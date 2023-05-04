@@ -32,9 +32,7 @@ public class Data2Product {
         String tidbUser = prop.getProperty("tidb.user");
         String tidbPassword = prop.getProperty("tidb.password");
 
-        /*String tidbUrl_jy = prop.getProperty("tidb.url_jy");
-        String tidbUser_jy = prop.getProperty("tidb.user_jy");
-        String tidbPassword_jy = prop.getProperty("tidb.password_jy");*/
+
 
         String tidbUrl_product = prop.getProperty("tidb.url_product");
         String tidbUser_p = prop.getProperty("tidb.user_product");

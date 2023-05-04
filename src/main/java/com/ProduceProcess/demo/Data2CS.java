@@ -10,7 +10,14 @@ import org.apache.spark.sql.SparkSession;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
+
 import static org.apache.spark.sql.functions.*;
 
 /**
@@ -21,7 +28,7 @@ import static org.apache.spark.sql.functions.*;
  * @description : Process Down_Consumer table
  * @date : 2023/4/2 11:31 AM
  */
-public class Data2CS  extends ProcessBase{
+public class Data2CS extends ProcessBase {
     public static void main(String[] args) throws IOException {
 
         //   read from configuration file, get configuration
@@ -33,25 +40,55 @@ public class Data2CS  extends ProcessBase{
         String tidbUser = prop.getProperty("tidb.user");
         String tidbPassword = prop.getProperty("tidb.password");
 
+        String tidbUrl_jy = prop.getProperty("tidb.url_jy");
+        String tidbUser_jy = prop.getProperty("tidb.user_jy");
+        String tidbPassword_jy = prop.getProperty("tidb.password_jy");
 
-        String tidbUrl_product = prop.getProperty("tidb.url_product");
+        /*String tidbUrl_product = prop.getProperty("tidb.url_product");
         String tidbUser_p = prop.getProperty("tidb.user_product");
-        String tidbPassword_p = prop.getProperty("tidb.password_product");
+        String tidbPassword_p = prop.getProperty("tidb.password_product");*/
 
         String appName = "Data2CS";
         SparkSession sparkSession = defaultSparkSession(appName);
 
-        String resultTable = "( select id, category_id,grade_id,region_id,position_id,task_time \n" +
-                "         ,measurefield,measureUnit,measureValue\n" +
-                "         from spzs_atom) t";
+        /*String resultTable = "( select id, " +
+                "category_id," +
+                "grade_id," +
+                "region_id," +
+                "position_id," +
+                "task_time," +
+                "measurefield," +
+                "measureUnit," +
+                "measureValue\n" +
+                "from spzs_atom) t";
         String adjustmentTable = "(SELECT " +
-                "                 case when unified_number = '0' then concat('dazao',cast(unified_number as CHAR), exponent_id, 'root') " +
-                "                     else cast(unified_number as CHAR) end as IndicatorCode," +
-                "                    category_id,grade_id,region_id,position_id" +
-                "                    FROM compile_unified_adjustment ) t ";//where category_id is not null and grade_id is not null and region_id is not null and position_id is not null
+                                 " case " +
+                                 " when unified_number = '0' then concat('dazao',cast(unified_number as CHAR), exponent_id, 'root') " +
+                                 " else cast(unified_number as CHAR) " +
+                                 " end as IndicatorCode," +
+                                 " category_id," +
+                                 " grade_id," +
+                                 " region_id," +
+                                 " position_id" +
+                                 " FROM compile_unified_adjustment ) t ";*/
+        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/longString.txt";
+        try {
+            String longString = new String(Files.readAllBytes(Paths.get(filePath)));
+//            System.out.println(longString);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-        String mainTable = "c_in_indicatormain";
-        String datavTable1 = "st_spzs_data_hz";
+        List<String> lines = new ArrayList<>();
+        try {
+            lines = Files.readAllLines(Paths.get(filePath));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        String indicatorCodes = String.join("','", lines);
+        String dataTable = String.format("(select * from c_in_indicatormain where IndicatorCode in (%s)) t", indicatorCodes);
+
+        String datavTable1 = "c_in_indicatormain_1";
 
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, dataTable).createOrReplaceTempView("data");
@@ -60,12 +97,13 @@ public class Data2CS  extends ProcessBase{
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, riseTable).createOrReplaceTempView("rise");
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, upTable).createOrReplaceTempView("up");
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, downTable).createOrReplaceTempView("down");
-        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, resultTable).createOrReplaceTempView("result");
-        getDF(sparkSession, tidbUrl_product, tidbUser, tidbPassword, adjustmentTable).createOrReplaceTempView("adjustment");
+//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, resultTable).createOrReplaceTempView("result");
+//        getDF(sparkSession, tidbUrl_product, tidbUser, tidbPassword, adjustmentTable).createOrReplaceTempView("adjustment");
 
         //  Process Price_up_table data
-        Dataset<Row> price_upDF = sparkSession.sql(getSql());
-//        price_upDF.show();
+//        Dataset<Row> price_upDF = sparkSession.sql(getSql());
+        Dataset<Row> price_upDF = getDF(sparkSession, tidbUrl_jy, tidbUser_jy, tidbPassword_jy, dataTable);
+        price_upDF.show();
         writeToTiDB(price_upDF, tidbUrl_warehouse, tidbUser, tidbPassword, datavTable1);
         sparkSession.stop();
     }
@@ -86,10 +124,10 @@ public class Data2CS  extends ProcessBase{
     private static String getSql() {
 
         return "select  \n" +
-                        " adj.IndicatorCode              as   IndicatorCode,\n" +
-                        " DATE_TRUNC('day', result.task_time)     as   pubDate,\n" +
-                        " result.measurefield               as   measureName,\n" +
-                        " result.measureValue               as   measureValue from result  join  adjustment  adj on  adj.category_id = result.category_id and adj.grade_id = result.grade_id and adj.region_id = result.region_id and adj.position_id = result.position_id order by measureValue desc";
+                " adj.IndicatorCode              as   IndicatorCode,\n" +
+                " DATE_TRUNC('day', result.task_time)     as   pubDate,\n" +
+                " result.measurefield               as   measureName,\n" +
+                " result.measureValue               as   measureValue from result  join  adjustment  adj on  adj.category_id = result.category_id and adj.grade_id = result.grade_id and adj.region_id = result.region_id and adj.position_id = result.position_id order by measureValue desc";
  /* "select adj.id                  as   id," +
                 " adj.unified_number             as   IndicatorCode," +
                 "adj.name                        as   IndicatorName," +
@@ -114,7 +152,7 @@ public class Data2CS  extends ProcessBase{
                 .option("password", password)
                 .option("dbtable", table)
                 .option("isolationLevel", "NONE")    //不开启事务
-                .option("batchsize", 10000)   //设置批量插入
+                .option("batchsize", 5000)   //设置批量插入
                 .save();
     }
 }

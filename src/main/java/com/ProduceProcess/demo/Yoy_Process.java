@@ -21,16 +21,17 @@ public class Yoy_Process extends ProcessBase {
         SparkSession sparkSession = defaultSparkSession(appName);
 
         //线螺:LWG3130008504LWG  //甲醇:JC2130002151JC //大豆:DD100000002DD / 橡胶:XJ5130010125XJ // 原油:YY4130100148YY //燃料油:RLY6130100363RLY
-        String dataTable = "(select * from st_spzs_data where IndicatorCode in " +
-                " (select b.treeID from(select treeid from st_spzs_tree where treeID in ('LWG3130008504LWG','JC2130002151JC', 'DD100000002DD'))a join st_spzs_tree b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item')and measureName in ('DV1','hightestPrice','price') )t";  //pubDate between '2023-01-01' and '2023-03-30' // 'DV1','hightestPrice','openingPrice'
+        String dataTable = "( select * " +
+                " from st_spzs_data " +
+                " where IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in ('PG8130101019PG','DY9131019121DY','XM1001019207XM','SZ1010221463SZ','RZJB1010221563RZJB','HS3230000002HS','YMDF1010841681YMDF','ZLY1010841806ZLY','BXG1011000202BXG','BT1012000001BT','TTJ1020000001TTJ','DLM1021000001DLM','JTM1022000001JTM','TKS4130000004TKS','XD1000000001XD','T1000000001T','L5120000004L','N6120000004N','BL810000002BL'))a join st_spzs_tree b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item')" +
+                " )t";  //pubDate between '2023-01-01' and '2023-03-30' // and measureName in ('DV1','hightestPrice','price','openingPrice')
         String priceRiseFallTable = "st_spzs_data_1";
 
         //get tmpView
         getDF(sparkSession, dataTable).createOrReplaceTempView("data");
-
         Dataset<Row> price_riseDF = sparkSession.sql(getSql());
         price_riseDF.show();
-//        writeToTiDB(price_riseDF, priceRiseFallTable);
+        writeToTiDB(price_riseDF, priceRiseFallTable);
         sparkSession.stop();
     }
 

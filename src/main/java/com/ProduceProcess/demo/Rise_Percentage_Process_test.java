@@ -5,6 +5,8 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * DzProduce   com.ProduceProcess.demo
@@ -14,25 +16,20 @@ import java.io.IOException;
  * @description : Process Price_table
  * @date : 2023/3/31 3:49 PM
  */
-public class Rise_Percentage_Process extends ProcessBase {
+public class Rise_Percentage_Process_test extends ProcessBase {
     public static void main(String[] args) throws IOException {
         String appName = "Process_PriceData_Table";
         SparkSession sparkSession = defaultSparkSession(appName);
-        //线螺:LWG3130008504LWG  //甲醇:JC2130002151JC //大豆:DD100000002DD / 橡胶:XJ5130010125XJ
-        // 原油:YY4130100148YY //燃料油:RLY6130100363RLY
-        // 'PG8130101019PG','MH8131019003MH','DY9131019121DY','XM1001019207XM','DP1231019331DP','SZ1010221463SZ','RZJB1010221563RZJB','JD8135018101JD','HZ100000002HZ','HS3230000002HS','YMDF1010841681YMDF','ZLY1010841806ZLY','YM1010961005YM','BXG1011000202BXG','BT1012000001BT','XC3133000202XC','JM4100002021JM','ZJ2530002101ZJ','QD2650003011QD','TTJ1020000001TTJ','DLM1021000001DLM','JTM1022000001JTM','TKS4130000004TKS','XD1000000001XD','T1000000001T','L5120000004L','N6120000004N','BL810000002BL'
-        String dataTable = "( select *  " +
-                " from st_spzs_data " +
-                " where IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in ('PG8130101019PG','DY9131019121DY','XM1001019207XM','SZ1010221463SZ','RZJB1010221563RZJB','HS3230000002HS','YMDF1010841681YMDF','ZLY1010841806ZLY','BXG1011000202BXG','BT1012000001BT','TTJ1020000001TTJ','DLM1021000001DLM','JTM1022000001JTM','TKS4130000004TKS','XD1000000001XD','T1000000001T','L5120000004L','N6120000004N','BL810000002BL'))a join st_spzs_tree b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item')" +
-                ")t";  //pubDate between '2023-01-01' and '2023-03-30' // and measureName in ('DV1','hightestPrice','price','openingPrice')
         String priceTable = "st_spzs_data_1";
+        //线螺:LWG3130008504LWG  //甲醇:JC2130002151JC //大豆:DD100000002DD / 橡胶:XJ5130010125XJ // 原油:YY4130100148YY //燃料油:RLY6130100363RLY
 
+        String dataTable = "( select * from st_spzs_data where IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID = '' )a join st_spzs_tree b on b.pathId like concat('%%',a.treeid, '%%')where b.category = 'dmp_item')and measureName in ('DV1','hightestPrice','price') )t"; //pubDate between '2023-01-01' and '2023-03-30' // 'DV1','hightestPrice',
         getDF(sparkSession, dataTable).createOrReplaceTempView("data");
         Dataset<Row> priceDF = sparkSession.sql(getSql());
         priceDF.show();
-        writeToTiDB(priceDF, priceTable);
+//        writeToTiDB(priceDF, priceTable);
         sparkSession.stop();
-    }
+        }
     //  Return SQL query statement
     private static String getSql() {
         return "WITH rank_table AS (\n" +
