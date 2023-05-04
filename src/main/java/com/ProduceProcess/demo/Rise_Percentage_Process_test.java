@@ -5,6 +5,9 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -21,9 +24,16 @@ public class Rise_Percentage_Process_test extends ProcessBase {
         String appName = "Process_PriceData_Table";
         SparkSession sparkSession = defaultSparkSession(appName);
         String priceTable = "st_spzs_data_1";
-        //线螺:LWG3130008504LWG  //甲醇:JC2130002151JC //大豆:DD100000002DD / 橡胶:XJ5130010125XJ // 原油:YY4130100148YY //燃料油:RLY6130100363RLY
+        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/priceID1.txt";
+        List<String> lines = Files.readAllLines(Paths.get(filePath));
+        String indicatorCodes = String.join("','", lines);
 
-        String dataTable = "( select * from st_spzs_data where IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID = '' )a join st_spzs_tree b on b.pathId like concat('%%',a.treeid, '%%')where b.category = 'dmp_item')and measureName in ('DV1','hightestPrice','price') )t"; //pubDate between '2023-01-01' and '2023-03-30' // 'DV1','hightestPrice',
+        //线螺:LWG3130008504LWG  //甲醇:JC2130002151JC //大豆:DD100000002DD / 橡胶:XJ5130010125XJ // 原油:YY4130100148YY //燃料油:RLY6130100363RLY
+        String dataTable = String.format("(select * from st_spzs_data where IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in (%s))a join st_spzs_tree b on b.pathId like concat('%%',a.treeid, '%%') where b.category = 'dmp_item')) t", indicatorCodes); //pubDate between '2023-01-01' and '2023-03-30' // 'DV1','hightestPrice',
+
+        System.out.println(dataTable);
+
+
         getDF(sparkSession, dataTable).createOrReplaceTempView("data");
         Dataset<Row> priceDF = sparkSession.sql(getSql());
         priceDF.show();

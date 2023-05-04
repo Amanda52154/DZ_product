@@ -72,19 +72,8 @@ public class Data2CS extends ProcessBase {
                                  " position_id" +
                                  " FROM compile_unified_adjustment ) t ";*/
         String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/longString.txt";
-        try {
-            String longString = new String(Files.readAllBytes(Paths.get(filePath)));
-//            System.out.println(longString);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
-        List<String> lines = new ArrayList<>();
-        try {
-            lines = Files.readAllLines(Paths.get(filePath));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        List<String> lines = Files.readAllLines(Paths.get(filePath));
         String indicatorCodes = String.join("','", lines);
         String dataTable = String.format("(select * from c_in_indicatormain where IndicatorCode in (%s)) t", indicatorCodes);
 
