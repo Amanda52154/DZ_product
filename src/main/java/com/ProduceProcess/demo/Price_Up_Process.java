@@ -5,6 +5,9 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
 
 /**
  * DzProduce   com.ProduceProcess.demo
@@ -19,20 +22,23 @@ public class Price_Up_Process extends ProcessBase {
         String appName = "Process_UpDown_Table";
         SparkSession sparkSession = defaultSparkSession(appName);
 
+        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/upDownID.txt";
+        List<String> lines = Files.readAllLines(Paths.get(filePath));
+        String indicatorCodes = String.join("','", lines);
 
-        String indexTable = "( select *" +
+        String indexTable = String.format("( select *" +
                 " from st_spzs_index " +
                 " where" +
-                " IndicatorCode in ('PG8130101331PG','DY9131019145DY','XM1001019556XM','SZ1010221476SZ','RZJB1010221602RZJB','HS3230000084HS','YMDF1010841721YMDF','ZLY1010841849ZLY','BT1012000006BT','TTJ1020000003TTJ','DLM1021000003DLM','JTM1022000003JTM','TKS4130000061TKS','XD1000000111XD','T1000000018T','L5120000030L','N6120000018N','BL810220101BL','BXG1011000305BXG')" +
-                ") t1";
+                " IndicatorCode in (%s)" +
+                ") t1", indicatorCodes);
         //线螺:'LWG3130005585LWG' / 大豆 : 'DD1340163828DD' / 甲醇'JC2130002976JC' / 燃料油:RLY6130100646RLY  原油:YY4130100162YY  橡胶:XJ5130010138XJ
-        //PG8130101331PG /MH8131019009MH(现货价) / DY9131019145DY / XM1001019556XM / DP1231019356DP(出厂价) / SZ1010221490SZ /RZJB1010221602RZJB /JD8135018124JD / HZ1340065521HZ / HS3230000084HS / YMDF1010841721YMDF / ZLY1010841849ZLY / YM1010961036YM / BT1012000006BT / XC3133000212XC / JM4100002023JM / BXG1011000305BXG/ ZJ2530002103ZJ无  QD2650003013QD 无数据/ TTJ1020000003TTJ / DLM1021000003DLM / JTM1022000003JTM / TKS4130000061TKS / XD1000000111XD / T1000000018T /L5120000030L /N6120000018N / BL810220101BL 水稻,纯碱没有价格
-        String dataTable = "( select * " +
+        //PG8130101331PG /MH8131019009MH(现货价) / DY9131019145DY / XM1001019556XM / DP1231019356DP(出厂价) / SZ1010221490SZ /RZJB1010221602RZJB /JD8135018124JD / HZ1340065521HZ / HS3230000084HS / YMDF1010841721YMDF / ZLY1010841849ZLY / YM1010961036YM / BT1012000006BT / XC3133000212XC / JM4100002023JM / BXG1011000305BXG/ ZJ2530002103ZJ无  QD2650003013QD 无数据/ TTJ1020000003TTJ / DLM1021000003DLM / JTM1022000003JTM / TKS4130000061TKS / XD1000000111XD / T1000000018T /L5120000030L /N6120000018N / BL810220101BL 水稻,纯碱没有价格  'XM1024010491XM','ZJ2530002103ZJ',
+        String dataTable = String.format("( select * " +
                 " from st_spzs_data" +
                 " where " +
-                " IndicatorCode in ('PG8130101331PG','DY9131019145DY','XM1001019556XM','SZ1010221476SZ','RZJB1010221602RZJB','HS3230000084HS','YMDF1010841721YMDF','ZLY1010841849ZLY','BT1012000006BT','TTJ1020000003TTJ','DLM1021000003DLM','JTM1022000003JTM','TKS4130000061TKS','XD1000000111XD','T1000000018T','L5120000030L','N6120000018N','BL810220101BL','BXG1011000305BXG')" +
+                " IndicatorCode in (%s)  and pubDate <= '2023-04-28'" +
 //                " and measureName in ('DV1','hightestPrice','price')" +
-                ")t";  //and pubDate <= '2023-04-27' in ('DV1','hightestPrice','price')
+                ")t", indicatorCodes);  //and pubDate <= '2023-04-27' in ('DV1','hightestPrice','price')
         String priceUpDownTable = "price_up_down";
 
         //      get tmpView
@@ -92,6 +98,6 @@ public class Price_Up_Process extends ProcessBase {
                 "       pubDate                                         as to_date,\n" +
                 "       unified                                         as unit,\n" +
                 "       product                                         as product\n" +
-                "from tmp1 where row_num = 1 "; //and pubDate = '2023-04-20'
+                "from tmp1 where row_num = 1 and pubDate = '2023-04-28'"; //and pubDate = '2023-04-20'
     }
 }

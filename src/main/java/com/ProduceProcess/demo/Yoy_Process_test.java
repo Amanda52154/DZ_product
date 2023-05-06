@@ -23,18 +23,18 @@ public class Yoy_Process_test extends ProcessBase {
         String appName = "Process_Rise_Table";
         SparkSession sparkSession = defaultSparkSession(appName);
 
-        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/priceID1.txt";
+        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/priceID.txt";
         List<String> lines = Files.readAllLines(Paths.get(filePath));
         String indicatorCodes = String.join("','", lines);
 
-        String dataTable = String.format("(select * from st_spzs_data where IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in (%s))a join st_spzs_tree b on b.pathId like concat('%%',a.treeid, '%%') where b.category = 'dmp_item')) t", indicatorCodes);  //pubDate between '2023-01-01' and '2023-03-30' // and measureName in ('DV1','hightestPrice','price','openingPrice')
+        String dataTable = String.format("(select * from st_spzs_data where IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in (%s))a join st_spzs_tree b on b.pathId like concat('%%',a.treeid, '%%') where b.category = 'dmp_item') and pubDate <= '2023-04-28') t", indicatorCodes);  //pubDate between '2023-01-01' and '2023-03-30' // and measureName in ('DV1','hightestPrice','price','openingPrice')
         String priceRiseFallTable = "st_spzs_data_1";
 
         //get tmpView
         getDF(sparkSession, dataTable).createOrReplaceTempView("data");
         Dataset<Row> price_riseDF = sparkSession.sql(getSql());
         price_riseDF.show();
-//        writeToTiDB(price_riseDF, priceRiseFallTable);
+        writeToTiDB(price_riseDF, priceRiseFallTable);
         sparkSession.stop();
     }
 
@@ -49,11 +49,11 @@ public class Yoy_Process_test extends ProcessBase {
                 " latest_dates AS ( SELECT IndicatorCode,  pubDate as latest_date, measureValue as latest_measure_value " +
                 "    FROM rank_table where row_num = 1),\n" + // 获取最新日期数据
                 "previous_year_dates AS (\n" +
-                "    SELECT t1.IndicatorCode,\n" +
-                "           t1.pubDate as previous_year_date,\n" +
-                "           t1.measureValue as previous_year_measure_value\n" +
-                "    FROM rank_table t1 JOIN latest_dates t2 ON t1.IndicatorCode = t2.IndicatorCode\n" +
-                "    WHERE t1.pubDate = date_add(t2.latest_date, -365)),\n" + // 获取上年同期数据
+                "    SELECT t2.IndicatorCode,\n" +
+                "           t2.latest_date as previous_year_date,\n" +
+                "            COALESCE(t1.measureValue, t2.latest_measure_value) as previous_year_measure_value\n" +
+                "    FROM rank_table t1 right JOIN latest_dates t2 ON t1.IndicatorCode = t2.IndicatorCode\n" +
+                "    and t1.pubDate = date_add(t2.latest_date, -365)),\n" + // 获取上年同期数据
                 "yoy_tabel as (SELECT t3.IndicatorCode,\n" +
                 "                     t3.latest_date,\n" +
                 "                     t4.previous_year_date,\n" +

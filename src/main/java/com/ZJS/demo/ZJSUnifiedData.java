@@ -27,7 +27,7 @@ public class ZJSUnifiedData extends ApiHelper {
         String appName = "ZJSUnifiedData";
         SparkSession sparkSession = defaultSparkSession(appName);
 
-        String indicatordatavTable = "c_in_indicatordatav_copy4";/*"(select * from c_in_indicatordatav where zjs_update_time >= '2023-03-30') t";*/
+        String indicatordatavTable = "(select * from c_in_indicatordatav_copy4 ) t"; // EndDate > '2019-01-01' and EndDate <= '2020-01-01'
         String indicatormainTable = "c_in_indicatormain";
         String dictionaryTable = "c_in_dictionary";
         String sinkTable = "st_c_in_indicatordatav_copy1";
@@ -37,7 +37,7 @@ public class ZJSUnifiedData extends ApiHelper {
         getDF(sparkSession, indicatormainTable).createOrReplaceTempView("indicatormain");
 
         Dataset<Row> tidbDF = sparkSession.sql(getSql());
-        tidbDF.show();
+//        tidbDF.show();
         writeToTiDB(tidbDF, sinkTable);
 
         sparkSession.stop();

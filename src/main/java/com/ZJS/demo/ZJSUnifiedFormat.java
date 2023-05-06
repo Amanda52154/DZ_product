@@ -28,7 +28,7 @@ public class ZJSUnifiedFormat extends ApiHelper {
         String appName = "ZJSUnifiedFormat";
         SparkSession sparkSession = defaultSparkSession(appName);
 
-        String indicatormainTable = "c_in_indicatormain_1";/*"( select * from c_in_indicatormain where IndicatorCode not like '%DD') t"*/;
+        String indicatormainTable = "( select * from c_in_indicatormain_copy1 ) t";
         String systemconstTable = "c_in_systemconst";
         String sinkTable = "st_c_in_indicatormain_copy1";
 

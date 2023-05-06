@@ -7,6 +7,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -75,9 +76,9 @@ public class Data2CS extends ProcessBase {
 
         List<String> lines = Files.readAllLines(Paths.get(filePath));
         String indicatorCodes = String.join("','", lines);
-        String dataTable = String.format("(select * from c_in_indicatormain where IndicatorCode in (%s)) t", indicatorCodes);
+        String dataTable = String.format("(select * from c_in_indicatordimension where IndicatorCode in (%s)) t", indicatorCodes);
 
-        String datavTable1 = "c_in_indicatormain_1";
+        String datavTable1 = "c_in_indicatordimension_copy1";
 
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
 //        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, dataTable).createOrReplaceTempView("data");
@@ -98,7 +99,7 @@ public class Data2CS extends ProcessBase {
     }
 
     //      Get tableView function
-    private static Dataset<Row> getDF(SparkSession sparkSession, String url, String user, String password, String table) {
+    private static Dataset<Row> getDF(@NotNull SparkSession sparkSession, String url, String user, String password, String table) {
         return sparkSession.read()
                 .format("jdbc")
                 .option("url", url)
