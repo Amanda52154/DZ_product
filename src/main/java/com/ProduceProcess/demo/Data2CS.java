@@ -72,7 +72,7 @@ public class Data2CS extends ProcessBase {
                                  " region_id," +
                                  " position_id" +
                                  " FROM compile_unified_adjustment ) t ";*/
-        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/longString.txt";
+        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/allID2CS.txt";
 
         List<String> lines = Files.readAllLines(Paths.get(filePath));
         String indicatorCodes = String.join("','", lines);

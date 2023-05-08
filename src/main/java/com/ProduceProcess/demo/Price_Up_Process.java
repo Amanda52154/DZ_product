@@ -37,7 +37,7 @@ public class Price_Up_Process extends ProcessBase {
                 " from st_spzs_data" +
                 " where " +
                 " IndicatorCode in (%s)  and pubDate <= '2023-04-28'" +
-//                " and measureName in ('DV1','hightestPrice','price')" +
+//                " and measureName in ('DV1','hightestPrice','price','inventory')" +
                 ")t", indicatorCodes);  //and pubDate <= '2023-04-27' in ('DV1','hightestPrice','price')
         String priceUpDownTable = "price_up_down";
 

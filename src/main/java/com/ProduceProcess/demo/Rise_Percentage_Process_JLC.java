@@ -19,24 +19,30 @@ import java.util.List;
  * @description : Process Price_table
  * @date : 2023/3/31 3:49 PM
  */
-public class Rise_Percentage_Process_test extends ProcessBase {
+public class Rise_Percentage_Process_JLC extends ProcessBase {
     public static void main(String[] args) throws IOException {
         String appName = "Process_PriceData_Table";
         SparkSession sparkSession = defaultSparkSession(appName);
 
-        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/1.txt";
+        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/jlcID.txt";
+        String namePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/measureName.txt";
         List<String> lines = Files.readAllLines(Paths.get(filePath));
+        List<String> words = Files.readAllLines(Paths.get(namePath));
         String indicatorCodes = String.join("','", lines);
+        String measureNames = String.join("','", words);
 
         //线螺:LWG3130008504LWG  //甲醇:JC2130002151JC //大豆:DD100000002DD / 橡胶:XJ5130010125XJ // 原油:YY4130100148YY //燃料油:RLY6130100363RLY //'XM1001019207XM',
-        String dataTable = String.format("(select * from st_spzs_data where IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in (%s))a join st_spzs_tree b on b.pathId like concat('%%',a.treeid, '%%') where b.category = 'dmp_item')and pubDate <= '2023-04-28') t", indicatorCodes); //pubDate between '2023-01-01' and '2023-03-30' // 'DV1','hightestPrice',
+        String dataTable = String.format("(select * from st_spzs_data where IndicatorCode in (SELECT b.treeID \n" +
+                "FROM st_spzs_tree a\n" +
+                "INNER JOIN st_spzs_tree b ON b.pathId LIKE CONCAT('%%', a.treeid, '%%')\n" +
+                "WHERE a.treeID IN (%s) AND b.category = 'dmp_item')and measureName in(%s) and pubDate <= '2023-04-28' ) t", indicatorCodes,measureNames); //pubDate between '2023-01-01' and '2023-03-30'
 
         String priceTable = "st_spzs_data_1";
 
         getDF(sparkSession, dataTable).createOrReplaceTempView("data");
         Dataset<Row> priceDF = sparkSession.sql(getSql());
         priceDF.show();
-        writeToTiDB(priceDF, priceTable);
+//        writeToTiDB(priceDF, priceTable);
         sparkSession.stop();
         }
     //  Return SQL query statement
@@ -54,7 +60,7 @@ public class Rise_Percentage_Process_test extends ProcessBase {
                        "           measureValue - yesterday_price AS rise_fall,\n" +
                        "           ROUND((measureValue - yesterday_price) / COALESCE(NULLIF(yesterday_price, 0), 1) * 100, 6) AS percentage\n" +
                        "    FROM rank_table\n" +
-                       "    WHERE row_num = 1)\n" +  // 计算涨跌幅/涨跌值
+                       "    WHERE row_num = 1)\n" +  // 计算涨跌值/涨跌幅
                        "SELECT IndicatorCode,\n" +
                        "       pubDate,\n" +
                        "       'percentage' AS measureName,\n" +

@@ -17,17 +17,20 @@ import java.util.List;
  * @description : Process Price_rise_fall table
  * @date : 2023/3/31 4:30 PM
  */
-public class Yoy_Process_test2 extends ProcessBase {
+public class Yoy_Process_ZJS extends ProcessBase {
     public static void main(String[] args) throws IOException {
 
         String appName = "Process_Rise_Table";
         SparkSession sparkSession = defaultSparkSession(appName);
 
-        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/1.txt";
+        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/0.txt";
         List<String> lines = Files.readAllLines(Paths.get(filePath));
         String indicatorCodes = String.join("','", lines);
 
-        String dataTable = String.format("(select * from st_spzs_data where IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in (%s))a join st_spzs_tree b on b.pathId like concat('%%',a.treeid, '%%') where b.category = 'dmp_item')  and pubDate <= '2023-04-28') t", indicatorCodes);  //pubDate between '2023-01-01' and '2023-03-30' // and measureName in ('DV1','hightestPrice','price','openingPrice')
+        String dataTable = String.format("(select * from st_spzs_data where IndicatorCode in (SELECT b.treeID \n" +
+                "FROM st_spzs_tree a\n" +
+                "INNER JOIN st_spzs_tree b ON b.pathId LIKE CONCAT('%%', a.treeid, '%%')\n" +
+                "WHERE a.treeID IN (%s) AND b.category = 'dmp_item') and pubDate <= '2023-04-28') t", indicatorCodes);  //pubDate between '2023-01-01' and '2023-03-30' //
         String priceRiseFallTable = "st_spzs_data_1";
 
         //get tmpView
@@ -63,11 +66,11 @@ public class Yoy_Process_test2 extends ProcessBase {
                 "    GROUP BY IndicatorCode\n" +
                 "),\n" +  // 获取最小天数
                 "previous_year_nearest_data AS (\n" +
-                "    SELECT p.IndicatorCode,\n" +
+                "    SELECT DISTINCT p.IndicatorCode,\n" +
                 "           p.pubDate AS previous_year_date,\n" +
                 "           p.measureValue AS previous_year_measure_value\n" +
                 "    FROM previous_year_data p\n" +
-                "    JOIN min_days_difference m ON p.IndicatorCode = m.IndicatorCode AND p.days_difference = m.min_difference\n" +
+                "    JOIN min_days_difference m ON p.IndicatorCode = m.IndicatorCode AND p.days_difference = m.min_difference \n" +
                 "),\n" + // 获取上年同期数据
                 "yoy_table AS (\n" +
                 "    SELECT t3.IndicatorCode,\n" +
