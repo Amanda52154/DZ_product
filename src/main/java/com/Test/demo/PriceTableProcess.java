@@ -1,6 +1,6 @@
-package com.ProduceProcess.demo;
+package com.Test.demo;
 
-import com.JLC.demo.JLCAllData2Tidb;
+import com.Test.demo.JLCAllData2Tidb;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.spark.sql.Dataset;
@@ -14,13 +14,13 @@ import java.util.Properties;
 
 /**
  * DzProduce   com.ProduceProcess.demo
- * 2023-03-2023/3/30   09:10
+ * 2023-03-2023/3/30   09:08
  *
  * @author : zhangmingyue
- * @description : Process price_up_down data
- * @date : 2023/3/30 9:10 AM
+ * @description : Process price_table data
+ * @date : 2023/3/30 9:08 AM
  */
-public class PriceUpDownProcess {
+public class PriceTableProcess {
     public static void main(String[] args) throws IOException {
         Logger.getLogger("org").setLevel(Level.ERROR);
         Logger logger = Logger.getLogger("SpzsIndex");
@@ -38,21 +38,26 @@ public class PriceUpDownProcess {
         String indexTable = "st_spzs_index";
         String dataTable = "st_spzs_data";
         String treeTable = "st_spzs_tree";
-        String priceUpDownTable = "price_up_down";
+        String priceTable = "price_data";
+
 
         SparkSession sparkSession = SparkSession.builder()
                 .appName("JLCDataUnifiedFormat")
                 .master("local[*]")
+                .config("spark.driver.memory", "4g")
+                .config("spark.executor.memory", "4g")
                 .getOrCreate();
+
         //      get tmpView
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, dataTable).createOrReplaceTempView("data");
         getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
         getTmpView(sparkSession);
-        //      Process Price_up_table data
-        Dataset<Row> price_upDF = sparkSession.sql(getSql());
-        price_upDF.show();
-//        writeToTiDB(price_upDF, tidbUrl_product, tidbUser, tidbPassword, priceUpDownTable);
+
+        Dataset<Row> priceDF = sparkSession.sql(getSql());
+        priceDF.show();
+//        writeToTiDB(priceDF, tidbUrl_product, tidbUser, tidbPassword, priceTable);
+
         sparkSession.stop();
     }
 
@@ -73,7 +78,43 @@ public class PriceUpDownProcess {
         //  Get attr column
         String jsonSchema = "struct<product:struct<attrName:string>,BelongsArea:struct<attrName:string>,measure:struct<attrName:string>,upd_freq:struct<attrName:string>,caliber:struct<attrName:string>>";
 
+        /*String getContentSql = "select distinct IndicatorCode, content from index";
+        Dataset<Row> contentData = sparkSession.sql(getContentSql);
+        Dataset<Row> parsedData = contentData.selectExpr("IndicatorCode", "from_json(content, '" + jsonSchema + "') as parsedContent");
+        parsedData.selectExpr("IndicatorCode", "parsedContent.product.attrName as product", "parsedContent.BelongsArea.attrName as BelongsArea", "parsedContent.measure.attrName as measure", "parsedContent.upd_freq.attrName as upd_freq", "parsedContent.caliber.attrName as caliber").createOrReplaceTempView("tmp");
 
+
+            String ranke_tabel = "SELECT tmp1.IndicatorCode,\n" +
+                    "           tmp1.IndicatorName,\n" +
+                    "           tmp1.endDate,\n" +
+                    "           tmp1.upd_freq,\n" +
+                    "           tmp1.unified,\n" +
+                    "           tmp1.product,\n" +
+                    "           tmp1.BelongsArea,\n" +
+                    "           tmp1.measure,\n" +
+                    "           tmp1.caliber,\n" +
+                    "           data.pubDate,\n" +
+                    "           data.measureName,\n" +
+                    "           data.measureValue,\n" +
+                    "           ROW_NUMBER() OVER (PARTITION BY tmp1.IndicatorCode ORDER BY data.pubDate DESC) AS row_num\n" +
+                    "    FROM (\n" +
+                    "             SELECT index.IndicatorCode,\n" +
+                    "                    index.IndicatorName,\n" +
+                    "                    index.endDate,\n" +
+                    "                    index.upd_freq,\n" +
+                    "                    index.unified,\n" +
+                    "                    tmp.product,\n" +
+                    "                    tmp.BelongsArea,\n" +
+                    "                    tmp.measure,\n" +
+                    "                    tmp.caliber\n" +
+                    "             FROM index\n" +
+                    "                      LEFT JOIN tmp ON index.IndicatorCode = tmp.IndicatorCode\n" +
+                    "             WHERE product = '大豆'\n" +
+                    "               AND index.IndicatorCode in (select treeID from tree where PID in (select treeID from tree where PID in(select treeID from tree where NodeName = '价格')))\n" +
+                    "         ) AS tmp1\n" +
+                    "             LEFT JOIN data ON tmp1.IndicatorCode = data.IndicatorCode";
+            sparkSession.sql(ranke_tabel).createOrReplaceTempView("ranke_Table");
+//            sparkSession.sql(ranke_tabel).show();*/
         String rankTableSql = "WITH parsed_content AS (" +
                 "SELECT IndicatorCode, " +
                 "       from_json(content, '" + jsonSchema + "') AS parsedContent " +
@@ -101,7 +142,8 @@ public class PriceUpDownProcess {
                 "FROM index " +
                 "JOIN tmp ON index.IndicatorCode = tmp.IndicatorCode " +
                 "WHERE product = '大豆' " +
-                "  AND index.IndicatorCode = '1340163828'), " +
+                "  AND index.IndicatorCode in (SELECT treeID FROM tree WHERE PID in (SELECT treeID FROM tree WHERE PID in(SELECT treeID FROM tree WHERE NodeName = '价格'))) " +
+                "), " +
                 "rank_Table AS (" +
                 "SELECT tmp1.IndicatorCode, " +
                 "       tmp1.IndicatorName, " +
@@ -121,23 +163,27 @@ public class PriceUpDownProcess {
                 ")" +
                 "SELECT * FROM rank_Table";
         sparkSession.sql(rankTableSql).createOrReplaceTempView("rank_Table");
-//        sparkSession.sql(rankTableSql).show();
+        //sparkSession.sql(rankTableSql).show();
         }
     //  Return SQL query statement
     private static String getSql(){
         return "with tmp1 as (select IndicatorCode,IndicatorName,unified,BelongsArea,measure,measureValue,pubDate,product,row_num,\n" +
-                "              LEAD(measureValue) OVER (PARTITION BY IndicatorCode ORDER BY pubDate desc) AS previous_price\n" +
-                "      from rank_Table\n" +
-                "      WHERE row_num <= 2\n" +
-                ")select IndicatorCode                                   as indicator_code,\n" +
-                "       IndicatorName                                   as indicator_name,\n" +
-                "       measureValue                                           as price,\n" +
-                "       previous_price                                  as previous_price,\n" +
-                "       (measureValue - previous_price)                        as rise_fall,\n" +
-                "       (measureValue - previous_price) / COALESCE(NULLIF(previous_price, 0), 1) * 100 as percentage,\n" +
-                "       pubDate                                         as to_date,\n" +
-                "       unified                                         as unit,\n" +
-                "       product                                         as product\n" +
+                "              LEAD(measureValue) OVER (PARTITION BY IndicatorCode ORDER BY pubDate desc) AS yesterday_price\n" +
+                "              from rank_Table\n" +
+                "              WHERE measureValue is not null\n" +
+                "                and row_num <= 2\n" +
+                ")\n" +
+                "select IndicatorCode                                            as indicator_code,\n" +
+                "       IndicatorName                                            as indicator_name,\n" +
+                "       BelongsArea                                              as address,\n" +
+                "       if(measure like \"%数据\", REPLACE(measure, '数据', ''),measure) as type_name,\n" +
+                "       measureValue                                             as latest_price,\n" +
+                "       yesterday_price                                          as yesterday_price,\n" +
+                "       (measureValue - yesterday_price)                         as rise_fall,\n" +
+                "       if((measureValue - yesterday_price) / COALESCE(NULLIF(yesterday_price, 0), 1) * 100 = 0,0,concat(cast(round((measureValue - yesterday_price) / COALESCE(NULLIF(yesterday_price, 0), 1) * 100, 6) as STRING), '%'))  as percentage,\n" +
+                "       unified                                                  as unit,\n" +
+                "       pubDate                                                  as `Date`,\n" +
+                "       product                                                  as product\n" +
                 "from tmp1 where row_num = 1";
     }
     //  write to Tidb
@@ -155,3 +201,5 @@ public class PriceUpDownProcess {
                 .save();
     }
 }
+
+

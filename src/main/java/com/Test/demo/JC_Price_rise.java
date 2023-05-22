@@ -1,9 +1,16 @@
-package com.ProduceProcess.demo;
+package com.Test.demo;
 
+import com.Test.demo.JLCAllData2Tidb;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
+
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
 
 /**
  * DzProduce   com.ProduceProcess.demo
@@ -13,26 +20,55 @@ import java.io.IOException;
  * @description : Process Price_rise_fall table
  * @date : 2023/3/31 4:30 PM
  */
-public class Price_rise_Process extends ProcessBase {
+public class JC_Price_rise {
     public static void main(String[] args) throws IOException {
 
-        String appName = "Process_Rise_Table";
-        SparkSession sparkSession = defaultSparkSession(appName);
+        Logger.getLogger("org").setLevel(Level.ERROR);
+        Logger logger = Logger.getLogger("SpzsIndex");
+        logger.setLevel(Level.ERROR);
+        //   read from configuration file, get configuration
+        Properties prop = new Properties();
+        InputStream inputStream = JLCAllData2Tidb.class.getClassLoader().getResourceAsStream("application.properties");
+        prop.load(inputStream);
 
-        String indexTable = "(select * from st_spzs_index  where  IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in ('XJ5130010126XJ','YY4130100160YY','RLY6130100900RLY')) a join st_spzs_tree b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item')) t1";
-        //线螺:LWG3130008562LWG //甲醇:JC2130002975JC //大豆:DD100000003DD // 橡胶:XJ5130010126XJ // 原油:YY4130100160YY // 燃料油:RLY6130100900RLY
-        String dataTable = "(select * from st_spzs_data where  IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in ('XJ5130010126XJ','YY4130100160YY','RLY6130100900RLY')) a join st_spzs_tree b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item') and measureName = 'price' )t"; // and pubDate between '2022-01-01' and '2023-03-30' //'DV1','hightestPrice',
+        String tidbUrl_warehouse = prop.getProperty("tidb.url_warehouse");
+        String tidbUrl_product = prop.getProperty("tidb.url_product");
+        String tidbUser = prop.getProperty("tidb.user");
+        String tidbPassword = prop.getProperty("tidb.password");
+
+        SparkSession sparkSession = SparkSession.builder()
+                .appName("JLCDataUnifiedFormat")
+                .master("local[*]")
+                .config("spark.driver.memory", "4g")
+                .config("spark.executor.memory", "8g")
+                .getOrCreate();
+
+        String indexTable =  "(select * from st_spzs_index  where  IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID in ('LWG3130008562LWG','JC2130002975JC','DD100000003DD')) a join st_spzs_tree b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item')) t1"; //线螺:58256e0ce80c2431e8e5a107 //甲醇:57c8f3cce80c19cd2f334c82 //大豆:100000003*/
+        String dataTable = "(select * from st_spzs_data where measureName in ('DV1','hightestPrice','price'))t"; //between '2022-01-01' and '2023-03-30'
         String priceRiseFallTable = "price_rise_fall";
 
-        //get tmpView
-        getDF(sparkSession, indexTable).createOrReplaceTempView("index");
-        getDF(sparkSession, dataTable).createOrReplaceTempView("data");
+
+        //      get tmpView
+        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
+        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, dataTable).createOrReplaceTempView("data");
         getTmpView(sparkSession);
 
         Dataset<Row> price_riseDF = sparkSession.sql(getSql());
         price_riseDF.show();
-        writeToTiDB(price_riseDF, priceRiseFallTable);
+        writeToTiDB(price_riseDF, tidbUrl_product, tidbUser, tidbPassword, priceRiseFallTable);
         sparkSession.stop();
+    }
+
+    //      Get tableView function
+    private static Dataset<Row> getDF(SparkSession sparkSession, String url, String user, String password, String table) {
+        return sparkSession.read()
+                .format("jdbc")
+                .option("url", url)
+                .option("driver", "com.mysql.jdbc.Driver")
+                .option("dbtable", table)
+                .option("user", user)
+                .option("password", password)
+                .load().toDF();
     }
 
     //  Get tmpView function
@@ -138,6 +174,18 @@ public class Price_rise_Process extends ProcessBase {
                 "         left join yoy_tabel yt\n" +
                 "                   on rft.indicator_code = yt.IndicatorCode  ";
     }
-
+    //  write to Tidb
+    private static void writeToTiDB(Dataset<Row> dataFrame, String url, String user, String password, String table) {
+        dataFrame.repartition(10).write()
+                .mode(SaveMode.Append)
+                .format("jdbc")
+                .option("driver", "com.mysql.jdbc.Driver")
+                .option("url", url)
+                .option("user", user)
+                .option("password", password)
+                .option("dbtable", table)
+                .option("isolationLevel", "NONE")    //不开启事务
+                .option("batchsize", 10000)   //设置批量插入
+                .save();
+    }
 }
-

@@ -22,18 +22,16 @@ public class Rise_Percentage_Process_ZJS extends ProcessBase {
         String appName = "Process_PriceData_Table";
         SparkSession sparkSession = defaultSparkSession(appName);
 
-        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/0.txt";
+        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/resources/zjsID.txt";
         List<String> lines = Files.readAllLines(Paths.get(filePath));
         String indicatorCodes = String.join("','", lines);
 
-
-        //线螺:LWG3130008504LWG  //甲醇:JC2130002151JC //大豆:DD100000002DD / 橡胶:XJ5130010125XJ // 原油:YY4130100148YY //燃料油:RLY6130100363RLY //'XM1001019207XM',
         String dataTable = String.format("(select * from st_spzs_data where IndicatorCode in (SELECT b.treeID \n" +
                 "FROM st_spzs_tree a\n" +
                 "INNER JOIN st_spzs_tree b ON b.pathId LIKE CONCAT('%%', a.treeid, '%%')\n" +
-                "WHERE a.treeID IN (%s) AND b.category = 'dmp_item') and pubDate <= '2023-04-28' ) t", indicatorCodes); //pubDate between '2023-01-01' and '2023-03-30'
+                "WHERE a.treeID IN (%s) AND b.category = 'dmp_item') and source = 'xhs') t", indicatorCodes); //pubDate between '2023-01-01' and '2023-03-30'
 
-        String priceTable = "st_spzs_data_1";
+        String priceTable = "st_spzs_data";
 
         getDF(sparkSession, dataTable).createOrReplaceTempView("data");
         Dataset<Row> priceDF = sparkSession.sql(getSql());
@@ -46,13 +44,13 @@ public class Rise_Percentage_Process_ZJS extends ProcessBase {
         return "WITH rank_table AS (\n" +
                        "    SELECT IndicatorCode,\n" +
                        "           pubDate,\n" +
-                       "           measureValue,\n" +
+                       "           measureValue, pt,\n" +
                        "           ROW_NUMBER() OVER (PARTITION BY IndicatorCode ORDER BY pubDate DESC) AS row_num,\n" +
                        "           LEAD(measureValue) OVER (PARTITION BY IndicatorCode ORDER BY pubDate DESC) AS yesterday_price\n" +
                        "    FROM data),\n" +  // 排序 + 获取下一行数据
                        "tmp AS (\n" +
                        "    SELECT IndicatorCode,\n" +
-                       "           pubDate,\n" +
+                       "           pubDate, pt,\n" +
                        "           measureValue - yesterday_price AS rise_fall,\n" +
                        "           ROUND((measureValue - yesterday_price) / COALESCE(NULLIF(yesterday_price, 0), 1) * 100, 6) AS percentage\n" +
                        "    FROM rank_table\n" +
@@ -60,17 +58,21 @@ public class Rise_Percentage_Process_ZJS extends ProcessBase {
                        "SELECT IndicatorCode,\n" +
                        "       pubDate,\n" +
                        "       'percentage' AS measureName,\n" +
-                       "       CAST(percentage AS STRING) AS measureValue,\n" +
+                       "       COALESCE(CAST(percentage AS STRING), 0) AS measureValue,\n" +
                        "       CURRENT_TIMESTAMP() AS updateDate,\n" +
-                       "       CURRENT_TIMESTAMP() AS insertDate\n" +
+                       "       CURRENT_TIMESTAMP() AS insertDate,\n" +
+                       "       'calculate' AS source,\n" +
+                       "       pt   " +
                        "FROM tmp\n" +
                        "UNION ALL\n" +  // 分别获取, union all 合并
                        "SELECT IndicatorCode,\n" +
                        "       pubDate,\n" +
-                       "       'rise_fall,ring_ratio' AS measureName,\n" +
-                       "       rise_fall AS measureValue,\n" +
+                       "       'rise_fall' AS measureName,\n" +
+                       "       COALESCE(rise_fall, 0)  AS measureValue,\n" +
                        "       CURRENT_TIMESTAMP() AS updateDate,\n" +
-                       "       CURRENT_TIMESTAMP() AS insertDate\n" +
+                       "       CURRENT_TIMESTAMP() AS insertDate,\n" +
+                        "       'calculate' AS source,\n" +
+                        "       pt  " +
                        "FROM tmp\n" +
                        "ORDER BY pubDate";
     }

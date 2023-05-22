@@ -1,23 +1,22 @@
-package com.JLC.demo;
+package com.Test.demo;
 
+import com.JLC.demo.ApiHelper;
 import com.Test.demo.JLCAllData2Tidb;
-import org.apache.spark.sql.*;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+import org.apache.spark.api.java.function.MapFunction;
+import org.apache.spark.sql.*;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.apache.spark.sql.Row;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
 
 /**
@@ -31,8 +30,8 @@ import java.util.*;
 
 
 
-public class JLCDateToTIDB extends ApiHelper{
-    public JLCDateToTIDB(String apiUrl) {
+public class JLCDateToTIDB_test extends ApiHelper {
+    public JLCDateToTIDB_test(String apiUrl) {
         super(apiUrl);
     }
 
@@ -46,65 +45,58 @@ public class JLCDateToTIDB extends ApiHelper{
         InputStream inputStream = JLCAllData2Tidb.class.getClassLoader().getResourceAsStream("application.properties");
         prop.load(inputStream);
 
-        // Get command line arguments
-        String mode = args[0];
-        String startDate = args[1];
-        String endDate = args[2];
-
-        // Determine partition condition
-        String partitionCondition;
-        if ("FULL".equalsIgnoreCase(mode)) {
-            partitionCondition = String.format("where publishDt < '%s' ", startDate);
-        } else if ("INC".equalsIgnoreCase(mode)) {
-            partitionCondition = String.format("where publishDt BETWEEN '%s' AND '%s'", startDate, endDate);
-        } else {
-            System.err.println("Invalid mode: " + mode);
-            System.exit(-1);
-            return;
-        }
-
+        String tidbUrl = prop.getProperty("tidb.url_warehouse");
+        String tidbUser = prop.getProperty("tidb.user");
+        String tidbPassword = prop.getProperty("tidb.password");
         String dataApiUrl = prop.getProperty("data.api.url");
+
+        String indexTable = "jlc_index";
         String dataTable = "jlc_data";
 
-        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/resources/all_jlcID2Product.txt";
 
-       /* List<String> stringList = Files.readAllLines(Paths.get(filePath));
+        List<String> stringList = getPathId(sparkSession, tidbUrl, tidbUser, tidbPassword, indexTable);
+
         for (String pathId : stringList) {
             String data_jsonBody = String.format("{" +
                     "\"idxId\": \"%s\"," +
-                    "\"queryColumns\": \"idxId,valueName,value,publishDt,remark\"," +
+                    "\"queryColumns\": \"idxId,valueName,value,publishDt,remark,dataId\"," +
                     "\"isPaging\": 1," +
                     "\"pageNum\": 1," +
                     "\"pageSize\": 1000" +
                     "}", pathId);
             try {
                 String data_jsonResponse = sendPostRequest(dataApiUrl,data_jsonBody);
-                Dataset<Row> data_dataFrame = Objects.requireNonNull(parseJsonToDataFrame_data(sparkSession, data_jsonResponse,startDate ,partitionCondition));
+                Dataset<Row> data_dataFrame = Objects.requireNonNull(parseJsonToDataFrame_data(sparkSession, data_jsonResponse));
                 data_dataFrame.show();
 //                writeToTiDB(data_dataFrame, dataTable);
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }*/
-        String pathId = Files.readAllLines(Paths.get(filePath)).get(0);
-        String data_jsonBody = String.format("{" +
-                "\"idxId\": \"%s\"," +
-                "\"queryColumns\": \"idxId,valueName,value,publishDt,remark\"," +
-                "\"isPaging\": 1," +
-                "\"pageNum\": 1," +
-                "\"pageSize\": 1000" +
-                "}", pathId);
-        String data_jsonResponse = sendPostRequest(dataApiUrl,data_jsonBody);
-        Dataset<Row> data_dataFrame = Objects.requireNonNull(parseJsonToDataFrame_data(sparkSession, data_jsonResponse,startDate ,partitionCondition));
-        data_dataFrame.show();
-//        writeToTiDB(data_dataFrame, dataTable);
-
+        }
         sparkSession.stop();
     }
 
+    // Step 1: get pathId from indextable
+    private static List<String> getPathId(SparkSession sparkSession, String url, String user, String password, String table) {
+        Dataset<Row> indexData = sparkSession.read()
+                .format("jdbc")
+                .option("url", url)
+                .option("driver", "com.mysql.jdbc.Driver")
+                .option("dbtable", table)
+                .option("user", user)
+                .option("password", password)
+                .load().toDF();
+        indexData.createOrReplaceTempView("index");
+
+        String sql = "select distinct id from index ";
+        Dataset<Row> rowDataset = sparkSession.sql(sql);
+        return rowDataset.map(
+                (MapFunction<Row, String>) row -> row.getString(0),
+                Encoders.STRING()).collectAsList();
+    }
 
     // Step 3: Convert the data to a Spark DataFrame  ****
-    private static Dataset<Row> parseJsonToDataFrame_data(SparkSession spark, String jsonData, String startDate,String partitionCondition) throws IOException {
+    private static Dataset<Row> parseJsonToDataFrame_data(SparkSession spark, String jsonData) throws IOException {
         JsonParser parser = new JsonParser();
         JsonObject responseObject = parser.parse(jsonData).getAsJsonObject();
 
@@ -137,7 +129,7 @@ public class JLCDateToTIDB extends ApiHelper{
                 Dataset<Row> dataDf = spark.createDataFrame(data_rows, data_schema);
                 //  Query the data using Spark SQL
                 dataDf.createOrReplaceTempView("data_table");
-                String query = String.format("SELECT idxId,publishDt,valueName,value, '%s' as pt FROM data_table %s", startDate,partitionCondition);
+                String query = "SELECT * FROM data_table";
                 return spark.sql(query);
             }
         }

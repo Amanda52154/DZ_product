@@ -22,7 +22,7 @@ public class DataUnifiedFormat extends ApiHelper {
         SparkSession sparkSession = defaultSparkSession(appName);
 
         String dataTable = "jlc_data"; /*"(select * from jlc_data where publishDt > '2022-10-01') t";*/
-        String sinkTable = "st_jlc_data_copy1";
+        String sinkTable = "st_jlc_data";
 
         getDF(sparkSession, dataTable).createOrReplaceTempView("data");
 
@@ -37,8 +37,8 @@ public class DataUnifiedFormat extends ApiHelper {
                 "valueName as measureName,\n" +
                 "value as measureValue,\n" +
                 "current_timestamp() as updateDate,\n" +
-                "current_timestamp() as insertDate\n" +
-                " from data ";
-        /*"select count(*) from data";*/
+                "current_timestamp() as insertDate,\n" +
+                "pt\n" +
+                "from data ";
     }
 }

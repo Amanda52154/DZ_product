@@ -1,1 +1,0 @@
-'hightestPrice','zhiBiaoZhi','gongYingL','kaiGongLv','devOperation','duiWaiYCD','ziJiLv','capacityStr','outputNum','downConsumeRatio','biaoGuan','kuCun','monthNumber','cumulativeTotal','price','DV1','openingPrice'

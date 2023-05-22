@@ -1,4 +1,4 @@
-package com.ZJS.demo;
+package com.Test.demo;
 
 /**
  * DZ_product   com.ZJS.demo

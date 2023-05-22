@@ -1,15 +1,11 @@
-package com.ProduceProcess.demo;
+package com.Test.demo;
 
+import com.ProduceProcess.demo.ProcessBase;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * DzProduce   com.ProduceProcess.demo
@@ -19,23 +15,17 @@ import java.util.List;
  * @description : Process Price_table
  * @date : 2023/3/31 3:49 PM
  */
-public class Rise_Percentage_Process_JLC extends ProcessBase {
+public class Rise_Percentage_Process extends ProcessBase {
     public static void main(String[] args) throws IOException {
         String appName = "Process_PriceData_Table";
         SparkSession sparkSession = defaultSparkSession(appName);
-
-        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/resources/jlcID.txt";
-        String namePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/resources/measureName.txt";
-        List<String> lines = Files.readAllLines(Paths.get(filePath));
-        List<String> words = Files.readAllLines(Paths.get(namePath));
-        String indicatorCodes = String.join("','", lines);
-        String measureNames = String.join("','", words);
-
-        String dataTable = String.format("(select * from st_spzs_data where IndicatorCode in (SELECT b.treeID \n" +
-                "FROM st_spzs_tree a\n" +
-                "INNER JOIN st_spzs_tree b ON b.pathId LIKE CONCAT('%%', a.treeid, '%%')\n" +
-                "WHERE a.treeID IN (%s) AND b.category = 'dmp_item') and measureName in(%s)) t", indicatorCodes,measureNames); //pubDate between '2023-01-01' and '2023-03-30'
-
+        //线螺:LWG3130008504LWG  //甲醇:JC2130002151JC //大豆:DD100000002DD / 橡胶:XJ5130010125XJ
+        // 原油:YY4130100148YY //燃料油:RLY6130100363RLY
+        // 'PG8130101019PG','MH8131019003MH','DY9131019121DY','XM1001019207XM','DP1231019331DP','SZ1010221463SZ','RZJB1010221563RZJB','JD8135018101JD','HZ100000002HZ','HS3230000002HS','YMDF1010841681YMDF','ZLY1010841806ZLY','YM1010961005YM','BXG1011000202BXG','BT1012000001BT','XC3133000202XC','JM4100002021JM','ZJ2530002101ZJ','QD2650003011QD','TTJ1020000001TTJ','DLM1021000001DLM','JTM1022000001JTM','TKS4130000004TKS','XD1000000001XD','T1000000001T','L5120000004L','N6120000004N','BL810000002BL'
+        String dataTable = "( select *  " +
+                " from st_spzs_data " +
+                " where IndicatorCode in (select b.treeID from(select treeid from st_spzs_tree where treeID ='RLY6130100363RLY' )a join st_spzs_tree b on b.pathId like concat('%',a.treeid, '%')where b.category = 'dmp_item') and measureName = 'price' " +
+                ")t";  //pubDate between '2023-01-01' and '2023-03-30' // and measureName in ('DV1','hightestPrice','price','openingPrice')
         String priceTable = "st_spzs_data";
 
         getDF(sparkSession, dataTable).createOrReplaceTempView("data");
@@ -43,41 +33,37 @@ public class Rise_Percentage_Process_JLC extends ProcessBase {
         priceDF.show();
         writeToTiDB(priceDF, priceTable);
         sparkSession.stop();
-        }
+    }
     //  Return SQL query statement
     private static String getSql() {
         return "WITH rank_table AS (\n" +
                        "    SELECT IndicatorCode,\n" +
                        "           pubDate,\n" +
-                       "           measureValue,pt,\n" +
+                       "           measureValue,\n" +
                        "           ROW_NUMBER() OVER (PARTITION BY IndicatorCode ORDER BY pubDate DESC) AS row_num,\n" +
                        "           LEAD(measureValue) OVER (PARTITION BY IndicatorCode ORDER BY pubDate DESC) AS yesterday_price\n" +
                        "    FROM data),\n" +  // 排序 + 获取下一行数据
                        "tmp AS (\n" +
                        "    SELECT IndicatorCode,\n" +
-                       "           pubDate, pt,\n" +
+                       "           pubDate,\n" +
                        "           measureValue - yesterday_price AS rise_fall,\n" +
                        "           ROUND((measureValue - yesterday_price) / COALESCE(NULLIF(yesterday_price, 0), 1) * 100, 6) AS percentage\n" +
                        "    FROM rank_table\n" +
-                       "    WHERE row_num = 1)\n" +  // 计算涨跌值/涨跌幅
+                       "    WHERE row_num = 1)\n" +  // 计算涨跌幅/涨跌值
                        "SELECT IndicatorCode,\n" +
                        "       pubDate,\n" +
                        "       'percentage' AS measureName,\n" +
-                       "       COALESCE(CAST(percentage AS STRING), 0) AS measureValue,\n" +
+                       "       CAST(percentage AS STRING) AS measureValue,\n" +
                        "       CURRENT_TIMESTAMP() AS updateDate,\n" +
-                       "       CURRENT_TIMESTAMP() AS insertDate,\n" +
-                "       'calculate' AS source,\n" +
-                "        pt   " +
+                       "       CURRENT_TIMESTAMP() AS insertDate,\n" +"    'st_spzs_data_1' AS source\n" +
                        "FROM tmp\n" +
                        "UNION ALL\n" +  // 分别获取, union all 合并
                        "SELECT IndicatorCode,\n" +
                        "       pubDate,\n" +
                        "       'rise_fall' AS measureName,\n" +
-                       "       COALESCE(rise_fall, 0)  AS measureValue,\n" +
+                       "       rise_fall AS measureValue,\n" +
                        "       CURRENT_TIMESTAMP() AS updateDate,\n" +
-                       "       CURRENT_TIMESTAMP() AS insertDate,\n" +
-                "       'calculate' AS source,\n" +
-                "        pt   " +
+                       "       CURRENT_TIMESTAMP() AS insertDate,\n" +"    'st_spzs_data_1' AS source\n" +
                        "FROM tmp\n" +
                        "ORDER BY pubDate";
     }

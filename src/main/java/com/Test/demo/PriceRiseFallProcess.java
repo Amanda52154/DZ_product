@@ -1,6 +1,6 @@
-package com.ProduceProcess.demo;
+package com.Test.demo;
 
-import com.JLC.demo.JLCAllData2Tidb;
+import com.Test.demo.JLCAllData2Tidb;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.spark.sql.Dataset;

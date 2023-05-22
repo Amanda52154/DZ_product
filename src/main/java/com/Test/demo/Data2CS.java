@@ -1,8 +1,7 @@
-package com.ProduceProcess.demo;
+package com.Test.demo;
 
-import com.JLC.demo.JLCAllData2Tidb;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
+import com.Test.demo.JLCAllData2Tidb;
+import com.ProduceProcess.demo.ProcessBase;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
@@ -13,13 +12,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
-import java.util.stream.Collectors;
-
-import static org.apache.spark.sql.functions.*;
 
 /**
  * DZ_product   com.ProduceProcess.demo
@@ -37,64 +31,33 @@ public class Data2CS extends ProcessBase {
         InputStream inputStream = JLCAllData2Tidb.class.getClassLoader().getResourceAsStream("application.properties");
         prop.load(inputStream);
 
-        String tidbUrl_warehouse = prop.getProperty("tidb.url_warehouse");
+        /*String tidbUrl_warehouse = prop.getProperty("tidb.url_warehouse");
         String tidbUser = prop.getProperty("tidb.user");
-        String tidbPassword = prop.getProperty("tidb.password");
+        String tidbPassword = prop.getProperty("tidb.password");*/
 
         String tidbUrl_jy = prop.getProperty("tidb.url_jy");
         String tidbUser_jy = prop.getProperty("tidb.user_jy");
         String tidbPassword_jy = prop.getProperty("tidb.password_jy");
 
-        /*String tidbUrl_product = prop.getProperty("tidb.url_product");
+        String tidbUrl_product = prop.getProperty("tidb.url_product");
         String tidbUser_p = prop.getProperty("tidb.user_product");
-        String tidbPassword_p = prop.getProperty("tidb.password_product");*/
+        String tidbPassword_p = prop.getProperty("tidb.password_product");
 
         String appName = "Data2CS";
         SparkSession sparkSession = defaultSparkSession(appName);
-
-        /*String resultTable = "( select id, " +
-                "category_id," +
-                "grade_id," +
-                "region_id," +
-                "position_id," +
-                "task_time," +
-                "measurefield," +
-                "measureUnit," +
-                "measureValue\n" +
-                "from spzs_atom) t";
-        String adjustmentTable = "(SELECT " +
-                                 " case " +
-                                 " when unified_number = '0' then concat('dazao',cast(unified_number as CHAR), exponent_id, 'root') " +
-                                 " else cast(unified_number as CHAR) " +
-                                 " end as IndicatorCode," +
-                                 " category_id," +
-                                 " grade_id," +
-                                 " region_id," +
-                                 " position_id" +
-                                 " FROM compile_unified_adjustment ) t ";*/
-        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/allID2CS.txt";
+        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/0.txt";
 
         List<String> lines = Files.readAllLines(Paths.get(filePath));
         String indicatorCodes = String.join("','", lines);
-        String dataTable = String.format("(select * from c_in_indicatordimension where IndicatorCode in (%s)) t", indicatorCodes);
+        String dataTable = String.format("(select * from c_in_indicatordatav where IndicatorCode in (%s)) t", indicatorCodes);
 
-        String datavTable1 = "c_in_indicatordimension_copy1";
-
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, indexTable).createOrReplaceTempView("index");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, dataTable).createOrReplaceTempView("data");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, treeTable).createOrReplaceTempView("tree");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, priceTable).createOrReplaceTempView("price");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, riseTable).createOrReplaceTempView("rise");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, upTable).createOrReplaceTempView("up");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, downTable).createOrReplaceTempView("down");
-//        getDF(sparkSession, tidbUrl_warehouse, tidbUser, tidbPassword, resultTable).createOrReplaceTempView("result");
-//        getDF(sparkSession, tidbUrl_product, tidbUser, tidbPassword, adjustmentTable).createOrReplaceTempView("adjustment");
+        String datavTable1 = "c_in_indicatordatav";
 
         //  Process Price_up_table data
 //        Dataset<Row> price_upDF = sparkSession.sql(getSql());
         Dataset<Row> price_upDF = getDF(sparkSession, tidbUrl_jy, tidbUser_jy, tidbPassword_jy, dataTable);
         price_upDF.show();
-        writeToTiDB(price_upDF, tidbUrl_warehouse, tidbUser, tidbPassword, datavTable1);
+        writeToTiDB(price_upDF, tidbUrl_product, tidbUser_p, tidbPassword_p, datavTable1);
         sparkSession.stop();
     }
 

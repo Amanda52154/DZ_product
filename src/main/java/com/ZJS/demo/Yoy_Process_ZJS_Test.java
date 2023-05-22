@@ -1,5 +1,6 @@
-package com.ProduceProcess.demo;
+package com.ZJS.demo;
 
+import com.ProduceProcess.demo.ProcessBase;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -17,7 +18,7 @@ import java.util.List;
  * @description : Process Price_rise_fall table
  * @date : 2023/3/31 4:30 PM
  */
-public class Yoy_Process_ZJS extends ProcessBase {
+public class Yoy_Process_ZJS_Test extends ProcessBase {
     public static void main(String[] args) throws IOException {
 
         String appName = "Process_Rise_Table";
@@ -37,7 +38,7 @@ public class Yoy_Process_ZJS extends ProcessBase {
         getDF(sparkSession, dataTable).createOrReplaceTempView("data");
         Dataset<Row> price_riseDF = sparkSession.sql(getSql());
         price_riseDF.show();
-        writeToTiDB(price_riseDF, priceRiseFallTable);
+//        writeToTiDB(price_riseDF, priceRiseFallTable);
         sparkSession.stop();
     }
 
@@ -49,14 +50,16 @@ public class Yoy_Process_ZJS extends ProcessBase {
                 "           measureValue,\n" +
                 "           pt,\n" +
                 "           ROW_NUMBER() OVER (PARTITION BY IndicatorCode ORDER BY pubDate DESC) AS row_num\n" +
-                "    FROM data),\n" +         // 排序
+                "    FROM data\n" +
+                "),\n" +
                 "latest_dates AS (\n" +
                 "    SELECT IndicatorCode,\n" +
                 "           pubDate as latest_date,\n" +
                 "           measureValue as latest_measure_value,\n" +
                 "           pt\n" +
                 "    FROM rank_table \n" +
-                "    WHERE row_num = 1),\n" + // 获取最新日期数据
+                "    WHERE row_num = 1\n" +
+                "),\n" +
                 "previous_year_data AS (\n" +
                 "    SELECT t1.IndicatorCode,\n" +
                 "           t1.pubDate,\n" +
@@ -64,7 +67,8 @@ public class Yoy_Process_ZJS extends ProcessBase {
                 "           ABS(DATEDIFF(t1.pubDate, DATE_ADD(t2.latest_date, -365))) AS days_difference\n" +
                 "    FROM rank_Table t1\n" +
                 "    JOIN latest_dates t2 ON t1.IndicatorCode = t2.IndicatorCode\n" +
-                "    WHERE YEAR(t1.pubDate) = YEAR(t2.latest_date) - 1),\n" +  // 获取去年天数差值
+                "    WHERE YEAR(t1.pubDate) = YEAR(t2.latest_date) - 1\n" +
+                "),\n" +
                 "previous_year_nearest_data AS (\n" +
                 "    SELECT p.IndicatorCode,\n" +
                 "           p.pubDate AS previous_year_date,\n" +
@@ -76,7 +80,8 @@ public class Yoy_Process_ZJS extends ProcessBase {
                 "               ROW_NUMBER() OVER (PARTITION BY IndicatorCode ORDER BY days_difference) as row_num\n" +
                 "        FROM previous_year_data\n" +
                 "    ) p\n" +
-                "    WHERE p.row_num = 1),\n" +   // 获取上年同期数据
+                "    WHERE p.row_num = 1\n" +
+                "),\n" +
                 "yoy_table AS (\n" +
                 "    SELECT t3.IndicatorCode,\n" +
                 "           t3.latest_date,\n" +
@@ -86,7 +91,8 @@ public class Yoy_Process_ZJS extends ProcessBase {
                 "           t3.pt,\n" +
                 "           (t3.latest_measure_value - t4.previous_year_measure_value) AS measure_value_difference\n" +
                 "    FROM latest_dates t3\n" +
-                "    JOIN previous_year_nearest_data t4 ON t3.IndicatorCode = t4.IndicatorCode)\n" +  // 计算同比
+                "    JOIN previous_year_nearest_data t4 ON t3.IndicatorCode = t4.IndicatorCode\n" +
+                ")\n" +
                 "SELECT\n" +
                 "    IndicatorCode,\n" +
                 "    latest_date AS pubDate,\n" +
@@ -96,7 +102,7 @@ public class Yoy_Process_ZJS extends ProcessBase {
                 "    current_timestamp() AS insertDate,\n" +
                 "    'calculate' AS source,\n" +
                 "    pt\n" +
-                "FROM yoy_table ";
+                "FROM yoy_table order by IndicatorCode";
     }
 }
 

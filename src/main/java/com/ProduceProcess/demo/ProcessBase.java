@@ -1,6 +1,6 @@
 package com.ProduceProcess.demo;
 
-import com.JLC.demo.JLCAllData2Tidb;
+import com.Test.demo.JLCAllData2Tidb;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.spark.sql.Dataset;
@@ -21,12 +21,6 @@ import java.util.Properties;
  * @date : 2023/4/15 10:33 AM
  */
 public class ProcessBase {
-//    private static String appName = "";
-//
-//    public ProcessBase(String appName) {
-//        ProcessBase.appName = appName;
-//    }
-
     public  static SparkSession defaultSparkSession(String appName) throws IOException {
         /*
     创建SparkSession对象
@@ -61,7 +55,7 @@ public class ProcessBase {
     }
 
     //      Get tableView function
-    static Dataset<Row> getDF(SparkSession sparkSession, String table) throws IOException {
+    protected static Dataset<Row> getDF(SparkSession sparkSession, String table) throws IOException {
         String[] result = getUrl();
         return sparkSession.read()
                 .format("jdbc")
@@ -74,7 +68,7 @@ public class ProcessBase {
     }
 
     //  write to Tidb
-    static void writeToTiDB(Dataset<Row> dataFrame, String table) throws IOException {
+    protected static void writeToTiDB(Dataset<Row> dataFrame, String table) throws IOException {
         String[] result = getUrl();
         dataFrame.repartition(10).write()
                 .mode(SaveMode.Append)

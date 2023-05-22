@@ -1,5 +1,6 @@
 package com.JLC.demo;
 
+import com.Test.demo.JLCAllData2Tidb;
 import okhttp3.*;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -64,7 +65,7 @@ public class ApiHelper {
         String jsonBody = createJsonBody(idPath, categorys);
         return  sendPostRequest(apiUrl, jsonBody);
     }
-    public String fetchData01(String jsonBody) throws IOException {
+    public  String fetchData01(String jsonBody) throws IOException {
         return  sendPostRequest(apiUrl, jsonBody);
     }
 
@@ -110,7 +111,7 @@ public class ApiHelper {
                 "}", categorys, idPath);
     }
 // Request API get data
-    private String sendPostRequest(String url,String jsonBody) throws IOException {
+    protected static String sendPostRequest(String url, String jsonBody) throws IOException {
         OkHttpClient client = new OkHttpClient();
         RequestBody requestBody = RequestBody.create(jsonBody, MediaType.parse("application/json; charset=utf-8"));
         Request request = new Request.Builder()

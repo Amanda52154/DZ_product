@@ -1,0 +1,1 @@
+'zhiBiaoZhi','gongYingL','kaiGongLv','outputNum','price','intervalPrice','capacity','biaoGuanLiang','jinKouLiang','chuKouLiang','inventory','balencePrice'
