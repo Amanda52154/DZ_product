@@ -1,14 +1,19 @@
 package com.ProduceProcess.demo;
 
+import com.JLC.demo.ApiHelper;
 import com.ProduceProcess.demo.ProcessBase;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * DzProduce   com.ProduceProcess.demo
@@ -23,8 +28,10 @@ public class Price_Up_Process extends ProcessBase {
         String appName = "Process_UpDown_Table";
         SparkSession sparkSession = defaultSparkSession(appName);
 
-        String filePath = "/Users/zhangmingyue/Desktop/DZ_product/src/main/java/com/ProduceProcess/demo/upDownID.txt";
-        List<String> lines = Files.readAllLines(Paths.get(filePath));
+
+        InputStream zjsStream = ApiHelper.class.getClassLoader().getResourceAsStream("upDownID.txt");
+        BufferedReader reader = new BufferedReader(new InputStreamReader(zjsStream));
+        List<String> lines = reader.lines().collect(Collectors.toList());
         String indicatorCodes = String.join("','", lines);
 
         String indexTable = String.format("( select *" +
@@ -39,7 +46,7 @@ public class Price_Up_Process extends ProcessBase {
                 " where " +
                 " IndicatorCode in (%s)  and pubDate <= '2023-04-28'" +
 //                " and measureName in ('DV1','hightestPrice','price','inventory')" +
-                ")t", indicatorCodes);  //and pubDate <= '2023-04-27' in ('DV1','hightestPrice','price')
+                ")t", indicatorCodes);
         String priceUpDownTable = "price_up_down";
 
         //      get tmpView

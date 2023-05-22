@@ -41,7 +41,7 @@ public class JLCDateToTIDB extends ApiHelper{
         String appName = "JLCDateToTIDB";
         SparkSession sparkSession = defaultSparkSession(appName);
 
-        //      read from configuration file, get configuration
+        // read from configuration file, get configuration
         Properties prop = new Properties();
         InputStream inputStream = JLCAllData2Tidb.class.getClassLoader().getResourceAsStream("application.properties");
         prop.load(inputStream);
